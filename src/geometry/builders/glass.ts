@@ -31,12 +31,18 @@ export function buildGlass(element: Element, glassOffset: number, tol: Tolerance
   const mirroredPerimeter = perimeterOffset[0] ? {
     ...element.perimeter,
     polygon: { points: perimeterOffset[0].points.map(pt => ({ x: -pt.x, y: pt.y })) }
-  } : element.perimeter;
+  } : {
+    ...element.perimeter,
+    polygon: { points: element.perimeter.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+  };
 
   const mirroredHoles = holesOffset.map((ho, i) => ho[0] ? {
     ...element.holes[i],
     polygon: { points: ho[0].points.map(pt => ({ x: -pt.x, y: pt.y })) }
-  } : element.holes[i]);
+  } : {
+    ...element.holes[i],
+    polygon: { points: element.holes[i].polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+  });
 
   const processedElement = {
     ...element,

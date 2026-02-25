@@ -68,39 +68,32 @@ export default function App() {
     <div className="flex flex-col lg:flex-row gap-6 p-6 font-mono text-sm max-w-[1600px] mx-auto text-gray-800">
       
       {/* Left Panel: Controls & Actions */}
-      <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6">
+      <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6 sticky top-6 self-start">
         <h1 className="text-2xl font-bold">Lightbox Engine</h1>
         
         <section className="bg-gray-50 p-4 border border-gray-200 rounded flex flex-col gap-4">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Settings size={18}/> Parameters</h2>
           
           <label className="flex flex-col gap-1">
-            <span className="font-semibold">Glass Offset (mm)</span>
-            <input type="number" value={glassOffset} onChange={e => setGlassOffset(Number(e.target.value))} className="border border-gray-300 p-2 rounded" />
+            <div className="flex justify-between">
+              <span className="font-semibold">Glass Offset (mm)</span>
+              <span className="text-blue-600 font-bold">{glassOffset}</span>
+            </div>
+            <input type="range" min="0" max="20" step="0.5" value={glassOffset} onChange={e => setGlassOffset(Number(e.target.value))} className="w-full" />
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="font-semibold">Chamfer/Fillet Length (mm)</span>
-            <input type="number" value={glassTera} onChange={e => setGlassTera(Number(e.target.value))} className="border border-gray-300 p-2 rounded" />
+            <div className="flex justify-between">
+              <span className="font-semibold">Chamfer/Fillet Length (mm)</span>
+              <span className="text-blue-600 font-bold">{glassTera}</span>
+            </div>
+            <input type="range" min="0" max="20" step="0.5" value={glassTera} onChange={e => setGlassTera(Number(e.target.value))} className="w-full" />
           </label>
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold border-b border-gray-300 pb-1">Export Actions</h2>
-          <button onClick={() => handleDownload('glass')} className="flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 py-3 rounded transition-colors">
-            <Download size={18} /> Glass DXF
-          </button>
-          <button onClick={() => handleDownload('backing')} className="flex items-center justify-center gap-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 py-3 rounded transition-colors">
-            <Download size={18} /> Backing DXF
-          </button>
-          <button onClick={() => handleDownload('vinyl')} className="flex items-center justify-center gap-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 py-3 rounded transition-colors">
-            <Download size={18} /> Vinyl DXF
-          </button>
-          <button onClick={() => handleDownload('kulg')} className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 py-3 rounded transition-colors">
-            <Download size={18} /> Külg DXF
-          </button>
-          <button onClick={handleExtractAll} className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-4 rounded font-bold transition-colors mt-2 shadow-md">
-            <Download size={20} /> Extract All (ZIP)
+          <button onClick={handleExtractAll} className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-4 rounded font-bold transition-colors shadow-md">
+            <Download size={20} /> Download All (ZIP)
           </button>
         </section>
       </div>
@@ -110,97 +103,41 @@ export default function App() {
         <section className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold border-b border-gray-300 pb-1">Source Geometry</h2>
           <GeometryEditor borders={borders} onChange={setBorders} title="Interactive Source Geometry" />
-          <DxfDropzone onBordersLoaded={setBorders} />
+          <DxfDropzone onBordersLoaded={(newBorders) => setBorders(prev => [...prev, ...newBorders])} />
         </section>
 
         <section className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold border-b border-gray-300 pb-1">Output Previews</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GeometryEditor borders={getBordersFromElements(pipelineResult.glass)} readonly title="Glass Output" />
-            <GeometryEditor borders={getBordersFromElements(pipelineResult.backing)} readonly title="Backing Output" />
-            <GeometryEditor borders={getBordersFromElements(pipelineResult.vinyl)} readonly title="Vinyl Output" />
-            <GeometryEditor borders={getBordersFromElements(pipelineResult.kulg)} readonly title="Külg Output" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <GeometryEditor borders={getBordersFromElements(pipelineResult.glass)} readonly title="Glass Output" />
+              <button onClick={() => handleDownload('glass')} className="flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 py-2 rounded transition-colors text-xs font-bold">
+                <Download size={14} /> Download Glass DXF
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <GeometryEditor borders={getBordersFromElements(pipelineResult.backing)} readonly title="Backing Output" />
+              <button onClick={() => handleDownload('backing')} className="flex items-center justify-center gap-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 py-2 rounded transition-colors text-xs font-bold">
+                <Download size={14} /> Download Backing DXF
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <GeometryEditor borders={getBordersFromElements(pipelineResult.vinyl)} readonly title="Vinyl Output" />
+              <button onClick={() => handleDownload('vinyl')} className="flex items-center justify-center gap-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 py-2 rounded transition-colors text-xs font-bold">
+                <Download size={14} /> Download Vinyl DXF
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <GeometryEditor borders={getBordersFromElements(pipelineResult.kulg)} readonly title="Külg Output" />
+              <button onClick={() => handleDownload('kulg')} className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 py-2 rounded transition-colors text-xs font-bold">
+                <Download size={14} /> Download Külg DXF
+              </button>
+            </div>
           </div>
         </section>
 
         <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">1. Architecture Summary</h2>
-        <div className="mt-2">
-          The geometry engine is implemented as a deterministic pipeline of pure functions. 
-          It uses <code>clipper-lib</code> for robust polygon boolean and offset operations.
-          The pipeline consists of:
-          <ul className="list-disc pl-5 mt-2 space-y-1">
-            <li><strong>Classification:</strong> Enclosure tree building and element ownership assignment based on polygon containment.</li>
-            <li><strong>Builders:</strong> Target-specific geometry generation (Glass, Backing, Vinyl, Külg) applying offset, mirroring, and corner policies.</li>
-            <li><strong>Validation:</strong> A suite of checks against sample geometry to ensure invariants are maintained.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">2. Files Changed</h2>
-        <ul className="list-disc pl-5 mt-2 space-y-1">
-          <li><code>/src/geometry/types.ts</code> - Domain model and primitive types</li>
-          <li><code>/src/geometry/math.ts</code> - Core geometric functions (area, containment)</li>
-          <li><code>/src/geometry/classification.ts</code> - Enclosure depth and parent assignment</li>
-          <li><code>/src/geometry/offset.ts</code> - Clipper-based polygon offset and boolean operations</li>
-          <li><code>/src/geometry/builders/glass.ts</code> - Glass builder semantics</li>
-          <li><code>/src/geometry/builders/backing.ts</code> - Backing builder semantics</li>
-          <li><code>/src/geometry/builders/vinyl.ts</code> - Vinyl builder semantics</li>
-          <li><code>/src/geometry/builders/kulg.ts</code> - Külg builder semantics</li>
-          <li><code>/src/geometry/pipeline.ts</code> - Action pipeline orchestrator</li>
-          <li><code>/src/geometry/sample.ts</code> - Sample geometry definition</li>
-          <li><code>/src/geometry/validation.ts</code> - Validation suite</li>
-        </ul>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">3. Compliance Matrix</h2>
-        <table className="w-full border-collapse border border-gray-300 mt-2">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 p-2 text-left">Section</th>
-              <th className="border border-gray-300 p-2 text-left">Status</th>
-              <th className="border border-gray-300 p-2 text-left">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td className="border border-gray-300 p-2">1. Domain model</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Implemented in types.ts</td></tr>
-            <tr><td className="border border-gray-300 p-2">2. Classification semantics</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Enclosure tree and ownership in classification.ts</td></tr>
-            <tr><td className="border border-gray-300 p-2">3. Input geometry constraints</td><td className="border border-gray-300 p-2 text-yellow-600 font-bold">Partial</td><td className="border border-gray-300 p-2">Basic tolerances defined, full repair policy pending</td></tr>
-            <tr><td className="border border-gray-300 p-2">4. Sample geometry definition</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">R0 and H0 defined in sample.ts</td></tr>
-            <tr><td className="border border-gray-300 p-2">5. Action pipeline</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Strict order implemented in pipeline.ts</td></tr>
-            <tr><td className="border border-gray-300 p-2">6. Corner semantics</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Explicit corner trace implemented in corners.ts</td></tr>
-            <tr><td className="border border-gray-300 p-2">7. Glass builder semantics</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Offset, mirror, and corner traces implemented</td></tr>
-            <tr><td className="border border-gray-300 p-2">8. Backing builder semantics</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Offset, no mirror, marker anchor, corner traces implemented</td></tr>
-            <tr><td className="border border-gray-300 p-2">9. Vinyl builder semantics</td><td className="border border-gray-300 p-2 text-yellow-600 font-bold">Partial</td><td className="border border-gray-300 p-2">No offset, corner traces implemented, physical fillet mocked</td></tr>
-            <tr><td className="border border-gray-300 p-2">10. Külg builder semantics</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Uses Backing geometry, no mirror</td></tr>
-            <tr><td className="border border-gray-300 p-2">11. Placement and nesting</td><td className="border border-gray-300 p-2 text-gray-500 font-bold">Skipped</td><td className="border border-gray-300 p-2">Skipped per user request</td></tr>
-            <tr><td className="border border-gray-300 p-2">12. DXF/DWG/SVG decode</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">SVG path parser implemented in decode.ts</td></tr>
-            <tr><td className="border border-gray-300 p-2">13. Data contracts</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Strict types and pipeline result structure</td></tr>
-            <tr><td className="border border-gray-300 p-2">14. Diagnostics model</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Diagnostic interface and collection implemented</td></tr>
-            <tr><td className="border border-gray-300 p-2">15. Invariants</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Checked during classification and validation</td></tr>
-            <tr><td className="border border-gray-300 p-2">16. Validation suite</td><td className="border border-gray-300 p-2 text-green-600 font-bold">Pass</td><td className="border border-gray-300 p-2">Implemented in validation.ts</td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">4. Test Results</h2>
-        <ul className="space-y-2 mt-2">
-          {results.map((res, i) => (
-            <li key={i} className="flex items-center gap-2 bg-gray-50 p-2 border border-gray-200 rounded">
-              <span className={res.passed ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
-                {res.passed ? "[PASS]" : "[FAIL]"}
-              </span>
-              <span>{res.message}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">5. Corner Trace Log (Sample)</h2>
+        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">1. Corner Trace Log (Sample)</h2>
         <div className="max-h-64 overflow-y-auto border border-gray-300 bg-gray-50 p-2 text-xs">
           <table className="w-full text-left">
             <thead>

@@ -28,7 +28,7 @@ export function analyzeCorners(border: Border, tol: Tolerances, target: 'glass' 
     if (target === 'glass' || target === 'backing') {
       if (isInteriorUsable && isAcute) action = 'chamfer';
     } else if (target === 'vinyl') {
-      if (isInteriorUsable) action = 'fillet';
+      if (isInteriorUsable && isAcute) action = 'fillet';
     }
 
     traces.push({

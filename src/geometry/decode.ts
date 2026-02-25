@@ -75,13 +75,14 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
 
   const borders: Border[] = [];
   let idCounter = 0;
+  const prefix = Math.random().toString(36).substring(2, 7);
 
   for (const entity of parsed.entities) {
     if (entity.type === 'LWPOLYLINE' || entity.type === 'POLYLINE') {
       const points: Point2[] = entity.vertices.map((v: any) => ({ x: v.x, y: v.y }));
       if (points.length > 2) {
         borders.push({
-          id: `dxf_${idCounter++}`,
+          id: `dxf_${prefix}_${idCounter++}`,
           loop: { segments: [{ type: 'line', points: [...points] }] },
           polygon: { points },
           role: 'unknown',
