@@ -1,0 +1,5 @@
+{
+  "name": "Lightbox Geometry Engine",
+  "description": "Deterministic CAD-to-manufacturing geometry engine for the Lightbox workflow.",
+  "requestFramePermissions": []
+}
