@@ -2,7 +2,7 @@ import { Element, Diagnostic, Tolerances, CornerTrace } from '../types';
 import { offsetPolygon } from '../offset';
 import { analyzeCorners } from '../corners';
 
-export function buildGlass(element: Element, glassOffset: number, tol: Tolerances, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
+export function buildGlass(element: Element, glassOffset: number, tol: Tolerances, diagnostics: Diagnostic[]): { elements: Element[], traces: CornerTrace[] } {
   const traces: CornerTrace[] = [];
   
   // Analyze corners
@@ -38,12 +38,29 @@ export function buildGlass(element: Element, glassOffset: number, tol: Tolerance
     polygon: { points: ho[0].points.map(pt => ({ x: -pt.x, y: pt.y })) }
   } : element.holes[i]);
 
-  return {
-    element: {
-      ...element,
-      perimeter: mirroredPerimeter,
-      holes: mirroredHoles
+  const processedElement = {
+    ...element,
+    perimeter: mirroredPerimeter,
+    holes: mirroredHoles
+  };
+
+  const mirroredSourceElement = {
+    ...element,
+    id: element.id + '_mirrored_src',
+    perimeter: {
+      ...element.perimeter,
+      id: element.perimeter.id + '_mirrored_src',
+      polygon: { points: element.perimeter.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
     },
+    holes: element.holes.map(h => ({
+      ...h,
+      id: h.id + '_mirrored_src',
+      polygon: { points: h.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+    }))
+  };
+
+  return {
+    elements: [processedElement, mirroredSourceElement],
     traces
   };
 }

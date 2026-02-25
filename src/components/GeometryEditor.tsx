@@ -3,10 +3,12 @@ import { Border, Point2 } from '../geometry/types';
 
 interface GeometryEditorProps {
   borders: Border[];
-  onChange: (borders: Border[]) => void;
+  onChange?: (borders: Border[]) => void;
+  readonly?: boolean;
+  title?: string;
 }
 
-export function GeometryEditor({ borders, onChange }: GeometryEditorProps) {
+export function GeometryEditor({ borders, onChange, readonly, title }: GeometryEditorProps) {
   const [dragging, setDragging] = useState<{ borderId: string; pointIndex: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -50,6 +52,7 @@ export function GeometryEditor({ borders, onChange }: GeometryEditorProps) {
   };
 
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent, borderId: string, pointIndex: number) => {
+    if (readonly) return;
     e.preventDefault();
     setDragging({ borderId, pointIndex });
   };
@@ -72,7 +75,7 @@ export function GeometryEditor({ borders, onChange }: GeometryEditorProps) {
         }
         return b;
       });
-      onChange(newBorders);
+      if (onChange) onChange(newBorders);
     };
 
     const handlePointerUp = () => {
@@ -95,7 +98,7 @@ export function GeometryEditor({ borders, onChange }: GeometryEditorProps) {
   }, [dragging, borders, onChange]);
 
   return (
-    <div className="w-full h-96 bg-gray-100 border border-gray-300 rounded overflow-hidden relative">
+    <div className="w-full aspect-[2/1] bg-gray-100 border border-gray-300 rounded overflow-hidden relative">
       <svg
         ref={svgRef}
         viewBox={viewBox}
@@ -123,7 +126,7 @@ export function GeometryEditor({ borders, onChange }: GeometryEditorProps) {
                 strokeWidth="2"
                 vectorEffect="non-scaling-stroke"
               />
-              {pts.map((p, i) => (
+              {!readonly && pts.map((p, i) => (
                 <circle
                   key={i}
                   cx={p.x}
@@ -143,7 +146,7 @@ export function GeometryEditor({ borders, onChange }: GeometryEditorProps) {
         })}
       </svg>
       <div className="absolute top-2 left-2 bg-white/80 px-2 py-1 rounded text-xs font-mono shadow">
-        Interactive Geometry Editor
+        {title || (readonly ? 'Geometry Preview' : 'Interactive Geometry Editor')}
       </div>
     </div>
   );

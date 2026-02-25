@@ -36,10 +36,11 @@ export function runPipeline(borders: Border[], config: PipelineConfig): Pipeline
   const elements = buildElementOwnershipModel(classifiedBorders, diagnostics);
 
   // 5. Derive per-output geometry
-  const glassElements = elements.map(el => {
+  const glassElements: Element[] = [];
+  elements.forEach(el => {
     const res = buildGlass(el, config.glassOffset, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
-    return res.element;
+    glassElements.push(...res.elements);
   });
   
   const backingElements = elements.map(el => {
