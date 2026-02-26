@@ -8,7 +8,8 @@ import { decodeSVGPath } from './decode';
 
 export interface PipelineConfig {
   glassOffset: number;
-  glassTera: number;
+  chamferLength: number;
+  filletRadius: number;
   tolerances: Tolerances;
 }
 
@@ -50,7 +51,7 @@ export function runPipeline(borders: Border[], config: PipelineConfig): Pipeline
   });
   
   const vinylElements = elements.map(el => {
-    const res = buildVinyl(el, config.glassTera, config.tolerances, diagnostics);
+    const res = buildVinyl(el, config.filletRadius, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
     return res.element;
   });

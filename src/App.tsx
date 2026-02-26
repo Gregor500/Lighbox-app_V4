@@ -16,14 +16,22 @@ const getBordersFromElements = (elements: Element[]): Border[] => {
 
 export default function App() {
   const [borders, setBorders] = useState<Border[]>(getSampleBorders());
+  const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
   const [glassOffset, setGlassOffset] = useState<number>(2);
-  const [glassTera, setGlassTera] = useState<number>(4);
+  const [chamferLength, setChamferLength] = useState<number>(4);
+  const [filletRadius, setFilletRadius] = useState<number>(4);
+  const [routerBitDepth, setRouterBitDepth] = useState<number>(3);
+  const [materialThickness, setMaterialThickness] = useState<number>(1.5);
+  const [cutDepth, setCutDepth] = useState<number>(0.2);
+  const [glassType, setGlassType] = useState<string>('Clear');
+  const [materialColor, setMaterialColor] = useState<string>('White');
 
   useEffect(() => {
     const config = {
       glassOffset,
-      glassTera,
+      chamferLength,
+      filletRadius,
       tolerances: DEFAULT_TOLERANCES
     };
     const pipelineResult = runPipeline(borders, config);
@@ -36,7 +44,12 @@ export default function App() {
     ];
 
     setReport({ results, pipelineResult });
-  }, [borders]);
+  }, [borders, glassOffset, glassTera]);
+
+  const handleBordersLoaded = (newBorders: Border[]) => {
+    setBorders(newBorders);
+    setIsImported(true);
+  };
 
   const handleDownload = (type: 'glass' | 'backing' | 'vinyl' | 'kulg') => {
     if (!report) return;
@@ -84,17 +97,63 @@ export default function App() {
 
           <label className="flex flex-col gap-1">
             <div className="flex justify-between">
-              <span className="font-semibold">Chamfer/Fillet Length (mm)</span>
-              <span className="text-blue-600 font-bold">{glassTera}</span>
+              <span className="font-semibold">Chamfer Length (mm)</span>
+              <span className="text-blue-600 font-bold">{chamferLength}</span>
             </div>
-            <input type="range" min="0" max="20" step="0.5" value={glassTera} onChange={e => setGlassTera(Number(e.target.value))} className="w-full" />
+            <input type="range" min="0" max="20" step="0.5" value={chamferLength} onChange={e => setChamferLength(Number(e.target.value))} className="w-full" />
           </label>
-        </section>
 
-        <section className="flex flex-col gap-3">
-          <button onClick={handleExtractAll} className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-4 rounded font-bold transition-colors shadow-md">
-            <Download size={20} /> Download All (ZIP)
-          </button>
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold">Fillet Radius (mm)</span>
+              <span className="text-blue-600 font-bold">{filletRadius}</span>
+            </div>
+            <input type="range" min="0" max="20" step="0.5" value={filletRadius} onChange={e => setFilletRadius(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <h3 className="font-bold mt-2 border-b border-gray-200 pb-1">Manufacturing</h3>
+          
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Router Bit Depth (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{routerBitDepth}</span>
+            </div>
+            <input type="range" min="1" max="10" step="0.5" value={routerBitDepth} onChange={e => setRouterBitDepth(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Material Thickness (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{materialThickness}</span>
+            </div>
+            <input type="range" min="0.5" max="10" step="0.5" value={materialThickness} onChange={e => setMaterialThickness(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Cut Depth (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{cutDepth}</span>
+            </div>
+            <input type="range" min="0.1" max="5" step="0.1" value={cutDepth} onChange={e => setCutDepth(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold text-xs">Glass Type</span>
+            <select value={glassType} onChange={e => setGlassType(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
+              <option value="Clear">Clear</option>
+              <option value="Opal">Opal</option>
+              <option value="Frosted">Frosted</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold text-xs">Material Color</span>
+            <select value={materialColor} onChange={e => setMaterialColor(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
+              <option value="White">White</option>
+              <option value="Black">Black</option>
+              <option value="Silver">Silver</option>
+            </select>
+          </label>
         </section>
       </div>
 
@@ -102,8 +161,12 @@ export default function App() {
       <div className="flex-grow flex flex-col gap-8 min-w-0">
         <section className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold border-b border-gray-300 pb-1">Source Geometry</h2>
-          <GeometryEditor borders={borders} onChange={setBorders} title="Interactive Source Geometry" />
-          <DxfDropzone onBordersLoaded={(newBorders) => setBorders(prev => [...prev, ...newBorders])} />
+          <DxfDropzone onBordersLoaded={handleBordersLoaded}>
+            <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" />
+          </DxfDropzone>
+          <button onClick={handleExtractAll} className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-4 rounded font-bold transition-colors shadow-md">
+            <Download size={20} /> Download All (ZIP)
+          </button>
         </section>
 
         <section className="flex flex-col gap-4">
@@ -135,47 +198,6 @@ export default function App() {
             </div>
           </div>
         </section>
-
-        <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">1. Corner Trace Log (Sample)</h2>
-        <div className="max-h-64 overflow-y-auto border border-gray-300 bg-gray-50 p-2 text-xs">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-gray-300">
-                <th className="p-1">Border ID</th>
-                <th className="p-1">Index</th>
-                <th className="p-1">Angle (deg)</th>
-                <th className="p-1">Interior Usable</th>
-                <th className="p-1">Acute</th>
-                <th className="p-1">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pipelineResult.cornerTraces.slice(0, 20).map((trace, i) => (
-                <tr key={i} className="border-b border-gray-200">
-                  <td className="p-1">{trace.sourceBorderId}</td>
-                  <td className="p-1">{trace.cornerIndex}</td>
-                  <td className="p-1">{trace.interiorAngleDeg.toFixed(1)}</td>
-                  <td className="p-1">{trace.isInteriorUsable ? 'Yes' : 'No'}</td>
-                  <td className="p-1">{trace.isAcute ? 'Yes' : 'No'}</td>
-                  <td className="p-1 font-semibold text-blue-600">{trace.actionChosen}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {pipelineResult.cornerTraces.length > 20 && (
-            <div className="p-2 text-gray-500 italic">... and {pipelineResult.cornerTraces.length - 20} more traces.</div>
-          )}
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-2 border-b border-gray-300 pb-1">6. Known Limitations</h2>
-        <ul className="list-disc pl-5 mt-2 space-y-2">
-          <li><strong>Physical Corner Generation:</strong> The explicit corner modification tracing (chamfer/fillet) is implemented and logged. However, the exact physical geometry generation for these specific corners still relies on ClipperLib's global offset. A custom geometry pass is needed to apply the exact chamfer/fillet parameters to the specific traced corners.</li>
-          <li><strong>Decode Stage:</strong> A basic SVG path parser is implemented for <code>M</code>, <code>L</code>, and <code>Z</code> commands. Full DXF/SVG parsing with curves (Beziers, Arcs) requires a more comprehensive library.</li>
-        </ul>
-      </section>
       </div>
     </div>
   );
