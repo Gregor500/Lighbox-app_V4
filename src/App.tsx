@@ -44,7 +44,7 @@ export default function App() {
     ];
 
     setReport({ results, pipelineResult });
-  }, [borders, glassOffset, glassTera]);
+  }, [borders, glassOffset, chamferLength, filletRadius]);
 
   const handleBordersLoaded = (newBorders: Border[]) => {
     setBorders(newBorders);

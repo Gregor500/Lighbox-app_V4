@@ -39,13 +39,13 @@ export function runPipeline(borders: Border[], config: PipelineConfig): Pipeline
   // 5. Derive per-output geometry
   const glassElements: Element[] = [];
   elements.forEach(el => {
-    const res = buildGlass(el, config.glassOffset, config.tolerances, diagnostics);
+    const res = buildGlass(el, config.glassOffset, config.chamferLength, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
     glassElements.push(...res.elements);
   });
   
   const backingElements = elements.map(el => {
-    const res = buildBacking(el, config.glassOffset, config.tolerances, diagnostics);
+    const res = buildBacking(el, config.glassOffset, config.chamferLength, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
     return res.element;
   });
