@@ -20,6 +20,7 @@ export default function App() {
   const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
   const [vinylRegions, setVinylRegions] = useState<{ color: string; polygons: Point2[][] }[]>([]);
+  const [showVinylMapping, setShowVinylMapping] = useState(false);
   const [glassOffset, setGlassOffset] = useState<number>(2);
   const [chamferLength, setChamferLength] = useState<number>(20);
   const [filletRadius, setFilletRadius] = useState<number>(20);
@@ -282,18 +283,37 @@ export default function App() {
       <div className="flex-grow flex flex-col gap-8 min-w-0">
         <section className="flex flex-col gap-4">
           <div className="flex justify-between items-end border-b border-gray-300 pb-1">
-            <h2 className="text-xl font-semibold">Source Geometry</h2>
+            <div className="flex gap-4 items-end">
+              <h2 className="text-xl font-semibold">Input Geometry</h2>
+              {isImported && borders.length > 0 && (
+                <div className="flex bg-gray-100 p-1 rounded-lg mb-1">
+                  <button
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${!showVinylMapping ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setShowVinylMapping(false)}
+                  >
+                    Auto (Source)
+                  </button>
+                  <button
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${showVinylMapping ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setShowVinylMapping(true)}
+                  >
+                    Custom (Mapping)
+                  </button>
+                </div>
+              )}
+            </div>
             {isImported && borders.length > 0 && (
-              <button onClick={handleClearGeometry} className="text-xs text-red-600 hover:text-red-800 font-semibold">
+              <button onClick={handleClearGeometry} className="text-xs text-red-600 hover:text-red-800 font-semibold mb-1">
                 Clear Geometry
               </button>
             )}
           </div>
-          <DxfDropzone onBordersLoaded={handleBordersLoaded}>
-            <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" />
-          </DxfDropzone>
           
-          {isImported && borders.length > 0 && (
+          {!showVinylMapping ? (
+            <DxfDropzone onBordersLoaded={handleBordersLoaded}>
+              <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" />
+            </DxfDropzone>
+          ) : (
             <VinylColorMapping 
               borders={borders} 
               onBordersChange={setBorders} 

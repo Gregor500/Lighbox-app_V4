@@ -93,9 +93,15 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
   const commonColors = ['#FF0000', '#0000FF', '#00FF00', '#FFFF00', '#FF00FF', '#00FFFF', '#000000', '#FFFFFF'];
 
   return (
-    <div className="flex flex-col gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+    <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Vinyl Color Mapping</h3>
+        <div className="text-sm text-gray-600">
+          {mode === 'shape' ? (
+            <>Click on any closed curve to toggle it between a <strong>Perimeter</strong> (blue) and a <strong>Hole</strong> (white/green). This defines the usable shape.</>
+          ) : (
+            <>Select a color and click inside regions to fill them with vinyl.</>
+          )}
+        </div>
         <div className="flex bg-gray-100 p-1 rounded-lg">
           <button
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${mode === 'shape' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
@@ -112,17 +118,8 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
         </div>
       </div>
 
-      {mode === 'shape' && (
-        <div className="text-sm text-gray-600">
-          Click on any closed curve to toggle it between a <strong>Perimeter</strong> (blue) and a <strong>Hole</strong> (red). This defines the usable shape.
-        </div>
-      )}
-
       {mode === 'paint' && (
         <div className="flex flex-col gap-3">
-          <div className="text-sm text-gray-600">
-            Select a color and click inside regions to fill them with vinyl.
-          </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-1">
               {commonColors.map(c => (
@@ -192,7 +189,7 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
                 key={border.id}
                 points={pointsStr}
                 fill={border.role === 'hole' ? '#FFFFFF' : (mode === 'shape' ? 'rgba(0, 0, 255, 0.1)' : 'none')}
-                stroke={border.role === 'hole' ? '#d1d5db' : '#3b82f6'}
+                stroke={border.role === 'hole' ? '#22c55e' : '#3b82f6'}
                 strokeWidth={mode === 'shape' ? "2" : "1"}
                 vectorEffect="non-scaling-stroke"
                 onClick={mode === 'shape' ? (e) => { e.stopPropagation(); handleShapeClick(border.id); } : undefined}

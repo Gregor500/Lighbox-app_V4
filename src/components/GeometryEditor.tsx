@@ -112,7 +112,7 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
         
-        {borders.map(border => {
+        {[...borders].sort((a, b) => (a.role === 'perimeter' ? -1 : 1)).map(border => {
           const pts = border.polygon.points;
           if (pts.length < 3) return null;
           const pointsStr = pts.map(p => `${p.x},${p.y}`).join(' ');
@@ -121,8 +121,8 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
             <g key={border.id}>
               <polygon
                 points={pointsStr}
-                fill={border.role === 'hole' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(0, 0, 255, 0.1)'}
-                stroke={border.role === 'hole' ? '#ef4444' : '#3b82f6'}
+                fill={border.role === 'hole' ? '#FFFFFF' : 'rgba(0, 0, 255, 0.1)'}
+                stroke={border.role === 'hole' ? '#22c55e' : '#3b82f6'}
                 strokeWidth="2"
                 vectorEffect="non-scaling-stroke"
               />
