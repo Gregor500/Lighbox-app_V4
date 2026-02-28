@@ -17,7 +17,7 @@ export function getInteriorAngle(pPrev: Point2, pCurr: Point2, pNext: Point2, is
   let angle = Math.atan2(v2.y, v2.x) - Math.atan2(v1.y, v1.x);
   if (angle < 0) angle += 2 * Math.PI;
   
-  let interiorPolyAngle = isCCW ? angle : (2 * Math.PI - angle);
+  let interiorPolyAngle = isCCW ? (2 * Math.PI - angle) : angle;
   
   if (isHole) {
     return 2 * Math.PI - interiorPolyAngle;

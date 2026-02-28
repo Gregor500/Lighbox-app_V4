@@ -21,7 +21,10 @@ export default function App() {
   const [glassOffset, setGlassOffset] = useState<number>(2);
   const [chamferLength, setChamferLength] = useState<number>(4);
   const [filletRadius, setFilletRadius] = useState<number>(4);
-  const [routerBitDepth, setRouterBitDepth] = useState<number>(3);
+  const [glassRouterBitDiameter, setGlassRouterBitDiameter] = useState<number>(3);
+  const [backingRouterBitDiameter, setBackingRouterBitDiameter] = useState<number>(3);
+  const [vinylRouterBitDiameter, setVinylRouterBitDiameter] = useState<number>(3);
+  const [kulgRouterBitDiameter, setKulgRouterBitDiameter] = useState<number>(3);
   const [materialThickness, setMaterialThickness] = useState<number>(1.5);
   const [cutDepth, setCutDepth] = useState<number>(0.2);
   const [glassType, setGlassType] = useState<string>('Clear');
@@ -54,7 +57,21 @@ export default function App() {
   const handleDownload = (type: 'glass' | 'backing' | 'vinyl' | 'kulg') => {
     if (!report) return;
     const elements = report.pipelineResult[type];
-    const dxfStr = exportToDXF(elements);
+    
+    let bitDiameter = 3;
+    if (type === 'glass') bitDiameter = glassRouterBitDiameter;
+    if (type === 'backing') bitDiameter = backingRouterBitDiameter;
+    if (type === 'vinyl') bitDiameter = vinylRouterBitDiameter;
+    if (type === 'kulg') bitDiameter = kulgRouterBitDiameter;
+
+    const dxfStr = exportToDXF(elements, {
+      type,
+      routerBitDiameter: bitDiameter,
+      materialThickness,
+      cutDepth,
+      glassType,
+      materialColor
+    });
     const blob = new Blob([dxfStr], { type: 'application/dxf' });
     saveAs(blob, `${type}_export.dxf`);
   };
@@ -65,7 +82,21 @@ export default function App() {
     
     ['glass', 'backing', 'vinyl', 'kulg'].forEach(type => {
       const elements = report.pipelineResult[type as keyof typeof report.pipelineResult] as any;
-      const dxfStr = exportToDXF(elements);
+      
+      let bitDiameter = 3;
+      if (type === 'glass') bitDiameter = glassRouterBitDiameter;
+      if (type === 'backing') bitDiameter = backingRouterBitDiameter;
+      if (type === 'vinyl') bitDiameter = vinylRouterBitDiameter;
+      if (type === 'kulg') bitDiameter = kulgRouterBitDiameter;
+
+      const dxfStr = exportToDXF(elements, {
+        type,
+        routerBitDiameter: bitDiameter,
+        materialThickness,
+        cutDepth,
+        glassType,
+        materialColor
+      });
       zip.file(`${type}_export.dxf`, dxfStr);
     });
 
@@ -115,10 +146,34 @@ export default function App() {
           
           <label className="flex flex-col gap-1">
             <div className="flex justify-between">
-              <span className="font-semibold text-xs">Router Bit Depth (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{routerBitDepth}</span>
+              <span className="font-semibold text-xs">Glass Router Bit Dia (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{glassRouterBitDiameter}</span>
             </div>
-            <input type="range" min="1" max="10" step="0.5" value={routerBitDepth} onChange={e => setRouterBitDepth(Number(e.target.value))} className="w-full" />
+            <input type="range" min="1" max="10" step="0.5" value={glassRouterBitDiameter} onChange={e => setGlassRouterBitDiameter(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Backing Router Bit Dia (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{backingRouterBitDiameter}</span>
+            </div>
+            <input type="range" min="1" max="10" step="0.5" value={backingRouterBitDiameter} onChange={e => setBackingRouterBitDiameter(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Vinyl Router Bit Dia (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{vinylRouterBitDiameter}</span>
+            </div>
+            <input type="range" min="1" max="10" step="0.5" value={vinylRouterBitDiameter} onChange={e => setVinylRouterBitDiameter(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Külg Router Bit Dia (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{kulgRouterBitDiameter}</span>
+            </div>
+            <input type="range" min="1" max="10" step="0.5" value={kulgRouterBitDiameter} onChange={e => setKulgRouterBitDiameter(Number(e.target.value))} className="w-full" />
           </label>
 
           <label className="flex flex-col gap-1">

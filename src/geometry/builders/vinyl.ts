@@ -30,8 +30,8 @@ function applyFillets(poly: PolygonApprox, traces: CornerTrace[], radius: number
       const angleRad = trace.interiorAngleDeg * Math.PI / 180;
       let d = radius / Math.tan(angleRad / 2);
       
-      // Clamp d to half the shortest edge
-      const maxD = Math.min(len1 / 2, len2 / 2);
+      // Clamp d to the shortest edge
+      const maxD = Math.min(len1, len2);
       if (d > maxD) d = maxD;
 
       const t1 = { x: pCurr.x + u1.x * d, y: pCurr.y + u1.y * d };
@@ -52,7 +52,7 @@ function applyFillets(poly: PolygonApprox, traces: CornerTrace[], radius: number
   return { points: newPts };
 }
 
-export function buildVinyl(element: Element, glassTera: number, tol: Tolerances, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
+export function buildVinyl(element: Element, filletRadius: number, tol: Tolerances, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
   const traces: CornerTrace[] = [];
   
   // Analyze corners
@@ -65,8 +65,6 @@ export function buildVinyl(element: Element, glassTera: number, tol: Tolerances,
   const vinylHoles = element.holes.map(h => ({ ...h }));
 
   // Fillet all interior usable-area corners
-  const filletRadius = glassTera / 2;
-  
   vinylPerimeter.polygon = applyFillets(vinylPerimeter.polygon, traces.filter(t => t.sourceBorderId === vinylPerimeter.id), filletRadius);
   vinylHoles.forEach(h => {
     h.polygon = applyFillets(h.polygon, traces.filter(t => t.sourceBorderId === h.id), filletRadius);

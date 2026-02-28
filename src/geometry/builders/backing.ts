@@ -48,8 +48,8 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, isHole: boole
       // d = C / sqrt(2 * (1 - cos(theta)))
       let d = chamferLength / Math.sqrt(2 * (1 - Math.cos(angleRad)));
       
-      // Clamp d to half the shortest edge to avoid overlapping chamfers
-      const maxD = Math.min(len1 / 2, len2 / 2);
+      // Clamp d to the shortest edge to avoid extending past the segment
+      const maxD = Math.min(len1, len2);
       if (d > maxD) d = maxD;
 
       const t1 = { x: pCurr.x + u1.x * d, y: pCurr.y + u1.y * d };
