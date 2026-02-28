@@ -52,6 +52,17 @@ export function buildEnclosureTree(borders: Border[], tol: Tolerances, diagnosti
     }
   }
 
+  // 3. Normalize orientation: perimeters CCW, holes CW
+  for (let i = 0; i < borders.length; i++) {
+    const area = polygonArea(borders[i].polygon);
+    const isCCW = area > 0;
+    if (borders[i].role === 'perimeter' && !isCCW) {
+      borders[i].polygon.points.reverse();
+    } else if (borders[i].role === 'hole' && isCCW) {
+      borders[i].polygon.points.reverse();
+    }
+  }
+
   return borders;
 }
 

@@ -9,14 +9,13 @@ export function analyzeCorners(border: Border, tol: Tolerances, target: 'glass' 
 
   const area = getSignedArea(pts);
   const isCCW = area > 0;
-  const isHole = border.role === 'hole';
 
   for (let i = 0; i < n; i++) {
     const pPrev = pts[(i - 1 + n) % n];
     const pCurr = pts[i];
     const pNext = pts[(i + 1) % n];
 
-    const angleRad = getInteriorAngle(pPrev, pCurr, pNext, isCCW, isHole);
+    const angleRad = getInteriorAngle(pPrev, pCurr, pNext, isCCW);
     const angleDeg = angleRad * (180 / Math.PI);
 
     // To handle floating point inaccuracies

@@ -2,7 +2,7 @@ import { Element, Diagnostic, Tolerances, CornerTrace, PolygonApprox, Point2 } f
 import { offsetPolygon } from '../offset';
 import { analyzeCorners } from '../corners';
 
-function applyChamfers(poly: PolygonApprox, chamferLength: number, isHole: boolean, tol: Tolerances): PolygonApprox {
+function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Tolerances): PolygonApprox {
   if (chamferLength <= 0) return poly;
   
   // Create a temporary border to analyze corners
@@ -10,7 +10,7 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, isHole: boole
     id: 'temp',
     loop: { segments: [] },
     polygon: poly,
-    role: isHole ? 'hole' : 'perimeter' as any,
+    role: 'perimeter' as any,
     depth: 0,
     parentId: null
   };
@@ -44,12 +44,14 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, isHole: boole
       const angleRad = trace.interiorAngleDeg * Math.PI / 180;
       
       // Calculate distance d along the edge to achieve the desired crosscut length C
-      // C^2 = d^2 + d^2 - 2*d*d*cos(theta) = 2*d^2*(1 - cos(theta))
-      // d = C / sqrt(2 * (1 - cos(theta)))
-      let d = chamferLength / Math.sqrt(2 * (1 - Math.cos(angleRad)));
+      // Split the acute interior angle into two right-angle triangles.
+      // The opposite leg of the right-angle triangle is C / 2.
+      // The hypotenuse is the distance d along the edge.
+      // sin(theta / 2) = (C / 2) / d  =>  d = (C / 2) / sin(theta / 2)
+      let d = (chamferLength / 2) / Math.sin(angleRad / 2);
       
-      // Clamp d to the shortest edge to avoid extending past the segment
-      const maxD = Math.min(len1, len2);
+      // Clamp d to half the shortest edge to avoid extending past the segment midpoint
+      const maxD = Math.min(len1, len2) / 2;
       if (d > maxD) d = maxD;
 
       const t1 = { x: pCurr.x + u1.x * d, y: pCurr.y + u1.y * d };
@@ -76,7 +78,7 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
   const perimeterOffset = offsetPolygon(element.perimeter.polygon, -glassOffset);
   
   // Hole offset outward by glass_offset
-  const holesOffset = element.holes.map(hole => offsetPolygon(hole.polygon, glassOffset));
+  const holesOffset = element.holes.map(hole => offsetPolygon(hole.polygon, -glassOffset));
 
   if (perimeterOffset.length === 0) {
     diagnostics.push({
@@ -90,7 +92,7 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
   }
 
   // Mirror final Glass geometry exactly once (X-axis mirror)
-  const processedPerimeterPoly = perimeterOffset[0] ? applyChamfers({ points: perimeterOffset[0].points }, chamferLength, false, tol) : applyChamfers(element.perimeter.polygon, chamferLength, false, tol);
+  const processedPerimeterPoly = perimeterOffset[0] ? applyChamfers({ points: perimeterOffset[0].points }, chamferLength, tol) : applyChamfers(element.perimeter.polygon, chamferLength, tol);
   
   const mirroredPerimeter = {
     ...element.perimeter,
@@ -98,7 +100,7 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
   };
 
   const mirroredHoles = holesOffset.map((ho, i) => {
-    const processedHolePoly = ho[0] ? applyChamfers({ points: ho[0].points }, chamferLength, true, tol) : applyChamfers(element.holes[i].polygon, chamferLength, true, tol);
+    const processedHolePoly = ho[0] ? applyChamfers({ points: ho[0].points }, chamferLength, tol) : applyChamfers(element.holes[i].polygon, chamferLength, tol);
     return {
       ...element.holes[i],
       polygon: { points: processedHolePoly.points.map(pt => ({ x: -pt.x, y: pt.y })) }

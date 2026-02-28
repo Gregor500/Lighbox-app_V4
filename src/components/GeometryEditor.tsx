@@ -70,7 +70,7 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
           return {
             ...b,
             polygon: { points: newPoints },
-            loop: { segments: [{ type: 'line', points: newPoints }] }
+            loop: { segments: [{ type: 'line' as const, points: newPoints }] }
           };
         }
         return b;

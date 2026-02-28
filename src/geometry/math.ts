@@ -10,7 +10,7 @@ export function getSignedArea(pts: Point2[]): number {
   return area / 2;
 }
 
-export function getInteriorAngle(pPrev: Point2, pCurr: Point2, pNext: Point2, isCCW: boolean, isHole: boolean): number {
+export function getInteriorAngle(pPrev: Point2, pCurr: Point2, pNext: Point2, isCCW: boolean): number {
   const v1 = { x: pPrev.x - pCurr.x, y: pPrev.y - pCurr.y };
   const v2 = { x: pNext.x - pCurr.x, y: pNext.y - pCurr.y };
   
@@ -19,9 +19,6 @@ export function getInteriorAngle(pPrev: Point2, pCurr: Point2, pNext: Point2, is
   
   let interiorPolyAngle = isCCW ? (2 * Math.PI - angle) : angle;
   
-  if (isHole) {
-    return 2 * Math.PI - interiorPolyAngle;
-  }
   return interiorPolyAngle;
 }
 

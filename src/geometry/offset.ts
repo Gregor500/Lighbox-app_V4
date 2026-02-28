@@ -7,6 +7,7 @@ export function offsetPolygon(poly: PolygonApprox, delta: number): PolygonApprox
   const path = poly.points.map(pt => ({ X: Math.round(pt.x * SCALE), Y: Math.round(pt.y * SCALE) }));
   
   const co = new ClipperLib.ClipperOffset();
+  co.MiterLimit = 100; // High limit to keep sharp corners for subsequent chamfering
   co.AddPath(path, ClipperLib.JoinType.jtMiter, ClipperLib.EndType.etClosedPolygon);
   
   const solution = new ClipperLib.Paths();

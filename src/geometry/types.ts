@@ -83,5 +83,5 @@ export const DEFAULT_TOLERANCES: Tolerances = {
   eps_collinear: 1e-4,
   eps_area_min: 1e-2,
   eps_self_intersection: 1e-4,
-  acute_threshold_deg: 45,
+  acute_threshold_deg: 135,
 };

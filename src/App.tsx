@@ -19,8 +19,8 @@ export default function App() {
   const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
   const [glassOffset, setGlassOffset] = useState<number>(2);
-  const [chamferLength, setChamferLength] = useState<number>(4);
-  const [filletRadius, setFilletRadius] = useState<number>(4);
+  const [chamferLength, setChamferLength] = useState<number>(20);
+  const [filletRadius, setFilletRadius] = useState<number>(20);
   const [glassRouterBitDiameter, setGlassRouterBitDiameter] = useState<number>(3);
   const [backingRouterBitDiameter, setBackingRouterBitDiameter] = useState<number>(3);
   const [vinylRouterBitDiameter, setVinylRouterBitDiameter] = useState<number>(3);

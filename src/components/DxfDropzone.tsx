@@ -14,7 +14,7 @@ export function DxfDropzone({ onBordersLoaded, children }: DxfDropzoneProps) {
   const onDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.dxf'));
+    const files = Array.from(e.dataTransfer.files as Iterable<File>).filter(f => f.name.toLowerCase().endsWith('.dxf'));
     
     if (files.length === 0) {
       alert('Please drop valid .dxf files');

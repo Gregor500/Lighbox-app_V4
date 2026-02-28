@@ -18,7 +18,8 @@ export function runValidationSuite(): FullReport {
   const borders = getSampleBorders();
   const config = {
     glassOffset: 2,
-    glassTera: 4,
+    chamferLength: 4,
+    filletRadius: 4,
     tolerances: DEFAULT_TOLERANCES
   };
 

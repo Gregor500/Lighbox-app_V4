@@ -30,8 +30,8 @@ function applyFillets(poly: PolygonApprox, traces: CornerTrace[], radius: number
       const angleRad = trace.interiorAngleDeg * Math.PI / 180;
       let d = radius / Math.tan(angleRad / 2);
       
-      // Clamp d to the shortest edge
-      const maxD = Math.min(len1, len2);
+      // Clamp d to half the shortest edge
+      const maxD = Math.min(len1, len2) / 2;
       if (d > maxD) d = maxD;
 
       const t1 = { x: pCurr.x + u1.x * d, y: pCurr.y + u1.y * d };
