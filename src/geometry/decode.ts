@@ -190,6 +190,15 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
     }
   }
 
+  // Fix Y-axis inversion (DXF is Y-up, SVG/Canvas is Y-down)
+  for (const border of borders) {
+    // We must create new point objects to avoid double-negation if references are shared
+    border.polygon.points = border.polygon.points.map(pt => ({ x: pt.x, y: -pt.y }));
+    for (const segment of border.loop.segments) {
+      segment.points = segment.points.map(pt => ({ x: pt.x, y: -pt.y }));
+    }
+  }
+
   return borders;
 }
 

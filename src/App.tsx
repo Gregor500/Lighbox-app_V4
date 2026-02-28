@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { runValidationSuite, FullReport } from './geometry/validation';
 import { GeometryEditor } from './components/GeometryEditor';
 import { DxfDropzone } from './components/DxfDropzone';
-import { Border, DEFAULT_TOLERANCES, Element } from './geometry/types';
+import { VinylColorMapping } from './components/VinylColorMapping';
+import { Border, DEFAULT_TOLERANCES, Element, Point2 } from './geometry/types';
 import { getSampleBorders } from './geometry/sample';
 import { runPipeline } from './geometry/pipeline';
 import { exportToDXF } from './geometry/export';
@@ -18,6 +19,7 @@ export default function App() {
   const [borders, setBorders] = useState<Border[]>(getSampleBorders());
   const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
+  const [vinylRegions, setVinylRegions] = useState<{ color: string; polygons: Point2[][] }[]>([]);
   const [glassOffset, setGlassOffset] = useState<number>(2);
   const [chamferLength, setChamferLength] = useState<number>(20);
   const [filletRadius, setFilletRadius] = useState<number>(20);
@@ -59,9 +61,42 @@ export default function App() {
     setIsImported(true);
   };
 
-  const handleDownload = (type: 'glass' | 'backing' | 'vinyl' | 'kulg') => {
+  const handleDownload = (type: 'glass' | 'backing' | 'vinyl' | 'kulg' | string) => {
     if (!report) return;
-    const elements = report.pipelineResult[type];
+    
+    if (type.startsWith('vinyl_color_')) {
+      const color = type.replace('vinyl_color_', '');
+      const region = vinylRegions.find(r => r.color === color);
+      if (!region) return;
+      
+      // Convert polygons to Elements for export
+      const elements: Element[] = region.polygons.map((poly, i) => ({
+        id: `vinyl_${color}_${i}`,
+        perimeter: {
+          id: `p_${i}`,
+          loop: { segments: [] },
+          polygon: { points: poly },
+          role: 'perimeter',
+          depth: 0,
+          parentId: null
+        },
+        holes: []
+      }));
+      
+      const dxfStr = exportToDXF(elements, {
+        type: `Vinyl (${color})`,
+        routerBitDiameter: vinylRouterBitDiameter,
+        materialThickness,
+        cutDepth,
+        glassType,
+        materialColor
+      });
+      const blob = new Blob([dxfStr], { type: 'application/dxf' });
+      saveAs(blob, `vinyl_${color.replace('#', '')}_export.dxf`);
+      return;
+    }
+
+    const elements = report.pipelineResult[type as keyof typeof report.pipelineResult] as any;
     
     let bitDiameter = 3;
     if (type === 'glass') bitDiameter = glassRouterBitDiameter;
@@ -103,6 +138,32 @@ export default function App() {
         materialColor
       });
       zip.file(`${type}_export.dxf`, dxfStr);
+    });
+
+    // Add custom vinyl colors
+    vinylRegions.forEach(region => {
+      const elements: Element[] = region.polygons.map((poly, i) => ({
+        id: `vinyl_${region.color}_${i}`,
+        perimeter: {
+          id: `p_${i}`,
+          loop: { segments: [] },
+          polygon: { points: poly },
+          role: 'perimeter',
+          depth: 0,
+          parentId: null
+        },
+        holes: []
+      }));
+      
+      const dxfStr = exportToDXF(elements, {
+        type: `Vinyl (${region.color})`,
+        routerBitDiameter: vinylRouterBitDiameter,
+        materialThickness,
+        cutDepth,
+        glassType,
+        materialColor
+      });
+      zip.file(`vinyl_${region.color.replace('#', '')}_export.dxf`, dxfStr);
     });
 
     const content = await zip.generateAsync({ type: 'blob' });
@@ -231,6 +292,15 @@ export default function App() {
           <DxfDropzone onBordersLoaded={handleBordersLoaded}>
             <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" />
           </DxfDropzone>
+          
+          {isImported && borders.length > 0 && (
+            <VinylColorMapping 
+              borders={borders} 
+              onBordersChange={setBorders} 
+              onVinylRegionsChange={setVinylRegions} 
+            />
+          )}
+
           <button onClick={handleExtractAll} className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white py-4 rounded font-bold transition-colors shadow-md">
             <Download size={20} /> Download All (ZIP)
           </button>
@@ -263,6 +333,30 @@ export default function App() {
                 <Download size={14} /> Download Külg DXF
               </button>
             </div>
+            
+            {vinylRegions.map(region => {
+              const elements: Element[] = region.polygons.map((poly, i) => ({
+                id: `vinyl_${region.color}_${i}`,
+                perimeter: {
+                  id: `p_${i}`,
+                  loop: { segments: [] },
+                  polygon: { points: poly },
+                  role: 'perimeter',
+                  depth: 0,
+                  parentId: null
+                },
+                holes: []
+              }));
+
+              return (
+                <div key={region.color} className="flex flex-col gap-2">
+                  <GeometryEditor borders={getBordersFromElements(elements)} readonly title={`Custom Vinyl (${region.color})`} />
+                  <button onClick={() => handleDownload(`vinyl_color_${region.color}`)} className="flex items-center justify-center gap-2 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 py-2 rounded transition-colors text-xs font-bold">
+                    <Download size={14} /> Download {region.color} DXF
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </section>
       </div>

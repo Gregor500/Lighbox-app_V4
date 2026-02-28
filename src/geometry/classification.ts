@@ -12,7 +12,11 @@ export function buildEnclosureTree(borders: Border[], tol: Tolerances, diagnosti
       }
     }
     borders[i].depth = depth;
-    borders[i].role = (depth % 2 === 0) ? 'perimeter' : 'hole';
+    if (borders[i].manualRole) {
+      borders[i].role = borders[i].manualRole!;
+    } else {
+      borders[i].role = (depth % 2 === 0) ? 'perimeter' : 'hole';
+    }
   }
 
   // 2. Assign parent

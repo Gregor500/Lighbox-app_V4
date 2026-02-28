@@ -30,6 +30,7 @@ export interface Border {
   loop: Loop;
   polygon: PolygonApprox;
   role: Role;
+  manualRole?: Role;
   depth: number;
   parentId: string | null;
 }
