@@ -72,14 +72,14 @@ export function DxfDropzone({ onBordersLoaded, children }: DxfDropzoneProps) {
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-blue-50/90 border-2 border-dashed border-blue-400 rounded-lg text-blue-600 transition-colors">
           <UploadCloud className="w-12 h-12 mb-2" />
           <span className="font-medium text-lg">Drop DXF file(s) here</span>
-          <span className="text-sm mt-1">Replaces current geometry</span>
+          <span className="text-sm mt-1">Appends to current geometry</span>
         </div>
       )}
       {!children && (
         <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer">
           <UploadCloud className="w-8 h-8 mb-2" />
           <span className="font-medium">Drag & Drop DXF file(s) here</span>
-          <span className="text-xs mt-1">Replaces current geometry</span>
+          <span className="text-xs mt-1">Appends to current geometry</span>
         </div>
       )}
     </div>

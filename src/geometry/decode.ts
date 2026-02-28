@@ -77,6 +77,9 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
   let idCounter = 0;
   const prefix = Math.random().toString(36).substring(2, 7);
 
+  // Pool of disconnected segments (arrays of points)
+  const segments: Point2[][] = [];
+
   for (const entity of parsed.entities) {
     if (entity.type === 'LWPOLYLINE' || entity.type === 'POLYLINE') {
       const points: Point2[] = entity.vertices.map((v: any) => ({ x: v.x, y: v.y }));
@@ -101,13 +104,66 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
         });
       }
       borders.push({
-        id: `dxf_${idCounter++}`,
+        id: `dxf_${prefix}_${idCounter++}`,
         loop: { segments: [{ type: 'circle', points: [...points] }] },
         polygon: { points },
         role: 'unknown',
         depth: -1,
         parentId: null
       });
+    } else if (entity.type === 'LINE') {
+      segments.push([
+        { x: entity.vertices[0].x, y: entity.vertices[0].y },
+        { x: entity.vertices[1].x, y: entity.vertices[1].y }
+      ]);
+    } else if (entity.type === 'ARC') {
+      const points: Point2[] = [];
+      const steps = 16;
+      let start = entity.startAngle;
+      let end = entity.endAngle;
+      if (end < start) end += 2 * Math.PI;
+      for (let i = 0; i <= steps; i++) {
+        const angle = start + (end - start) * (i / steps);
+        points.push({
+          x: entity.center.x + entity.radius * Math.cos(angle),
+          y: entity.center.y + entity.radius * Math.sin(angle)
+        });
+      }
+      segments.push(points);
+    } else if (entity.type === 'SPLINE') {
+      if (entity.controlPoints && entity.controlPoints.length > 1) {
+        const points: Point2[] = entity.controlPoints.map((p: any) => ({ x: p.x, y: p.y }));
+        segments.push(points);
+      }
+    } else if (entity.type === 'ELLIPSE') {
+      const points: Point2[] = [];
+      const steps = 32;
+      const cx = entity.center.x;
+      const cy = entity.center.y;
+      const mx = entity.majorAxisEndPoint.x;
+      const my = entity.majorAxisEndPoint.y;
+      const ratio = entity.axisRatio;
+      
+      // Calculate minor axis vector
+      const majorLen = Math.hypot(mx, my);
+      const minorLen = majorLen * ratio;
+      const nx = -my / majorLen * minorLen;
+      const ny = mx / majorLen * minorLen;
+      
+      let start = entity.startAngle || 0;
+      let end = entity.endAngle || (2 * Math.PI);
+      if (end < start) end += 2 * Math.PI;
+      
+      for (let i = 0; i <= steps; i++) {
+        const angle = start + (end - start) * (i / steps);
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        points.push({
+          x: cx + mx * cosA + nx * sinA,
+          y: cy + my * cosA + ny * sinA
+        });
+      }
+      segments.push(points);
     } else {
       diagnostics.push({
         code: 'unsupported_entity',
@@ -119,5 +175,86 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
     }
   }
 
+  // Connect loose segments into loops
+  const connectedLoops = connectSegments(segments, tol.eps_closure_gap);
+  for (const loopPts of connectedLoops) {
+    if (loopPts.length > 2) {
+      borders.push({
+        id: `dxf_${prefix}_${idCounter++}`,
+        loop: { segments: [{ type: 'line', points: [...loopPts] }] },
+        polygon: { points: loopPts },
+        role: 'unknown',
+        depth: -1,
+        parentId: null
+      });
+    }
+  }
+
   return borders;
+}
+
+function connectSegments(segments: Point2[][], eps: number): Point2[][] {
+  if (segments.length === 0) return [];
+  
+  const loops: Point2[][] = [];
+  let currentLoop: Point2[] | null = null;
+  const used = new Array(segments.length).fill(false);
+
+  for (let i = 0; i < segments.length; i++) {
+    if (used[i]) continue;
+    
+    currentLoop = [...segments[i]];
+    used[i] = true;
+    
+    let added = true;
+    while (added) {
+      added = false;
+      const startPt = currentLoop[0];
+      const endPt = currentLoop[currentLoop.length - 1];
+      
+      for (let j = 0; j < segments.length; j++) {
+        if (used[j]) continue;
+        
+        const seg = segments[j];
+        const segStart = seg[0];
+        const segEnd = seg[seg.length - 1];
+        
+        // Check if segment connects to end of current loop
+        if (Math.hypot(endPt.x - segStart.x, endPt.y - segStart.y) < eps) {
+          currentLoop.push(...seg.slice(1));
+          used[j] = true;
+          added = true;
+          break;
+        } else if (Math.hypot(endPt.x - segEnd.x, endPt.y - segEnd.y) < eps) {
+          currentLoop.push(...[...seg].reverse().slice(1));
+          used[j] = true;
+          added = true;
+          break;
+        }
+        // Check if segment connects to start of current loop
+        else if (Math.hypot(startPt.x - segEnd.x, startPt.y - segEnd.y) < eps) {
+          currentLoop.unshift(...seg.slice(0, -1));
+          used[j] = true;
+          added = true;
+          break;
+        } else if (Math.hypot(startPt.x - segStart.x, startPt.y - segStart.y) < eps) {
+          currentLoop.unshift(...[...seg].reverse().slice(0, -1));
+          used[j] = true;
+          added = true;
+          break;
+        }
+      }
+    }
+    
+    // Close the loop if start and end are close
+    const finalStart = currentLoop[0];
+    const finalEnd = currentLoop[currentLoop.length - 1];
+    if (currentLoop.length > 2 && Math.hypot(finalStart.x - finalEnd.x, finalStart.y - finalEnd.y) < eps) {
+      currentLoop.pop(); // Remove duplicate end point
+    }
+    
+    loops.push(currentLoop);
+  }
+  
+  return loops;
 }

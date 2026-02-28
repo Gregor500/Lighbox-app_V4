@@ -50,7 +50,12 @@ export default function App() {
   }, [borders, glassOffset, chamferLength, filletRadius]);
 
   const handleBordersLoaded = (newBorders: Border[]) => {
-    setBorders(newBorders);
+    setBorders(prev => isImported ? [...prev, ...newBorders] : newBorders);
+    setIsImported(true);
+  };
+
+  const handleClearGeometry = () => {
+    setBorders([]);
     setIsImported(true);
   };
 
@@ -215,7 +220,14 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-grow flex flex-col gap-8 min-w-0">
         <section className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold border-b border-gray-300 pb-1">Source Geometry</h2>
+          <div className="flex justify-between items-end border-b border-gray-300 pb-1">
+            <h2 className="text-xl font-semibold">Source Geometry</h2>
+            {isImported && borders.length > 0 && (
+              <button onClick={handleClearGeometry} className="text-xs text-red-600 hover:text-red-800 font-semibold">
+                Clear Geometry
+              </button>
+            )}
+          </div>
           <DxfDropzone onBordersLoaded={handleBordersLoaded}>
             <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" />
           </DxfDropzone>
