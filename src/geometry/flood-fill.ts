@@ -38,25 +38,21 @@ export function floodFillAndTrace(
   ctx.fillRect(0, 0, canvasW, canvasH);
   
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 1; // 1 pixel line width
+  ctx.lineWidth = 3; // 3 pixel line width to prevent leaks
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
   for (const b of borders) {
-    for (const seg of b.loop.segments) {
-      if (seg.points.length < 2) continue;
-      ctx.beginPath();
-      const first = seg.points[0];
-      ctx.moveTo((first.x - minX) * scale, (first.y - minY) * scale);
-      for (let i = 1; i < seg.points.length; i++) {
-        const p = seg.points[i];
-        ctx.lineTo((p.x - minX) * scale, (p.y - minY) * scale);
-      }
-      if (seg.type === 'circle' || b.polygon.points.length > 2) {
-        ctx.closePath();
-      }
-      ctx.stroke();
+    if (b.polygon.points.length < 2) continue;
+    ctx.beginPath();
+    const first = b.polygon.points[0];
+    ctx.moveTo((first.x - minX) * scale, (first.y - minY) * scale);
+    for (let i = 1; i < b.polygon.points.length; i++) {
+      const p = b.polygon.points[i];
+      ctx.lineTo((p.x - minX) * scale, (p.y - minY) * scale);
     }
+    ctx.closePath();
+    ctx.stroke();
   }
 
   // 3. Flood fill
@@ -80,9 +76,14 @@ export function floodFillAndTrace(
   filled[startY * canvasW + startX] = 1;
 
   let minFx = startX, minFy = startY, maxFx = startX, maxFy = startY;
+  let touchedEdge = false;
 
   while (queue.length > 0) {
     const [x, y] = queue.pop()!;
+    
+    if (x === 0 || x === canvasW - 1 || y === 0 || y === canvasH - 1) {
+      touchedEdge = true;
+    }
     
     if (x < minFx) minFx = x;
     if (y < minFy) minFy = y;
@@ -104,6 +105,8 @@ export function floodFillAndTrace(
       }
     }
   }
+
+  if (touchedEdge) return null; // Reject unbounded regions (background)
 
   // 4. Trace contour (Moore neighborhood or simple boundary detection)
   // Find a starting boundary pixel

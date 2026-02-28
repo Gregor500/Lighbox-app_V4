@@ -35,8 +35,6 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
   const getMouseCoords = (e: React.MouseEvent | React.TouchEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
     const svg = svgRef.current;
-    const CTM = svg.getScreenCTM();
-    if (!CTM) return { x: 0, y: 0 };
     
     let clientX, clientY;
     if ('touches' in e) {
@@ -47,10 +45,14 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
       clientY = (e as React.MouseEvent).clientY;
     }
 
-    return {
-      x: (clientX - CTM.e) / CTM.a,
-      y: (clientY - CTM.f) / CTM.d
-    };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const svgP = pt.matrixTransform(ctm.inverse());
+
+    return { x: svgP.x, y: svgP.y };
   };
 
   const handleShapeClick = (borderId: string) => {
@@ -180,7 +182,7 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
           ))}
 
           {/* Draw borders */}
-          {borders.map(border => {
+          {[...borders].sort((a, b) => (a.role === 'perimeter' ? -1 : 1)).map(border => {
             const pts = border.polygon.points;
             if (pts.length < 3) return null;
             const pointsStr = pts.map(p => `${p.x},${p.y}`).join(' ');
@@ -189,12 +191,12 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
               <polygon
                 key={border.id}
                 points={pointsStr}
-                fill={mode === 'shape' ? (border.role === 'hole' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(0, 0, 255, 0.1)') : 'none'}
-                stroke={border.role === 'hole' ? '#ef4444' : '#3b82f6'}
+                fill={border.role === 'hole' ? '#FFFFFF' : (mode === 'shape' ? 'rgba(0, 0, 255, 0.1)' : 'none')}
+                stroke={border.role === 'hole' ? '#d1d5db' : '#3b82f6'}
                 strokeWidth={mode === 'shape' ? "2" : "1"}
                 vectorEffect="non-scaling-stroke"
                 onClick={mode === 'shape' ? (e) => { e.stopPropagation(); handleShapeClick(border.id); } : undefined}
-                className={mode === 'shape' ? 'hover:stroke-4 transition-all' : 'pointer-events-none opacity-50'}
+                className={mode === 'shape' ? 'hover:stroke-4 transition-all cursor-pointer' : 'pointer-events-none'}
               />
             );
           })}
