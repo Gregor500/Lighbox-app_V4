@@ -69,3 +69,53 @@ export function isClosed(poly: PolygonApprox, tol: Tolerances): boolean {
   const last = poly.points[poly.points.length - 1];
   return distance(first, last) <= tol.eps_closure_gap;
 }
+
+export function simplifyPolygon(poly: PolygonApprox, tol: Tolerances): PolygonApprox {
+  const pts = poly.points;
+  if (pts.length < 3) return poly;
+
+  const newPts: Point2[] = [];
+  const n = pts.length;
+
+  for (let i = 0; i < n; i++) {
+    const pPrev = newPts.length > 0 ? newPts[newPts.length - 1] : pts[(i - 1 + n) % n];
+    const pCurr = pts[i];
+    const pNext = pts[(i + 1) % n];
+
+    // Check if pCurr is collinear with pPrev and pNext
+    // Area of triangle formed by pPrev, pCurr, pNext
+    const area = Math.abs(
+      pPrev.x * (pCurr.y - pNext.y) +
+      pCurr.x * (pNext.y - pPrev.y) +
+      pNext.x * (pPrev.y - pCurr.y)
+    ) / 2;
+
+    // Also check distance to avoid removing corners that are just very close
+    const distPrevCurr = distance(pPrev, pCurr);
+    const distCurrNext = distance(pCurr, pNext);
+
+    if (area < tol.eps_collinear && distPrevCurr > tol.eps_point_merge && distCurrNext > tol.eps_point_merge) {
+      // It's collinear, so we skip pCurr
+      continue;
+    }
+
+    newPts.push(pCurr);
+  }
+
+  // One more pass to check the first point against the last and second
+  if (newPts.length >= 3) {
+    const pPrev = newPts[newPts.length - 1];
+    const pCurr = newPts[0];
+    const pNext = newPts[1];
+    const area = Math.abs(
+      pPrev.x * (pCurr.y - pNext.y) +
+      pCurr.x * (pNext.y - pPrev.y) +
+      pNext.x * (pPrev.y - pCurr.y)
+    ) / 2;
+    if (area < tol.eps_collinear) {
+      newPts.shift();
+    }
+  }
+
+  return { points: newPts };
+}

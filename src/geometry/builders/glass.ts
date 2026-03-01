@@ -1,8 +1,8 @@
 import { Element, Diagnostic, Tolerances, CornerTrace, PolygonApprox, Point2 } from '../types';
-import { offsetPolygon } from '../offset';
+import { offsetPolygon, getUsableMaterial } from '../offset';
 import { analyzeCorners } from '../corners';
 
-function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Tolerances): PolygonApprox {
+function applyChamfers(poly: PolygonApprox, role: 'perimeter' | 'hole', chamferLength: number, tol: Tolerances): PolygonApprox {
   if (chamferLength <= 0) return poly;
   
   // Create a temporary border to analyze corners
@@ -10,7 +10,7 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Toleranc
     id: 'temp',
     loop: { segments: [] },
     polygon: poly,
-    role: 'perimeter' as any,
+    role: role,
     depth: 0,
     parentId: null
   };
@@ -43,14 +43,8 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Toleranc
 
       const angleRad = trace.interiorAngleDeg * Math.PI / 180;
       
-      // Calculate distance d along the edge to achieve the desired crosscut length C
-      // Split the acute interior angle into two right-angle triangles.
-      // The opposite leg of the right-angle triangle is C / 2.
-      // The hypotenuse is the distance d along the edge.
-      // sin(theta / 2) = (C / 2) / d  =>  d = (C / 2) / sin(theta / 2)
       let d = (chamferLength / 2) / Math.sin(angleRad / 2);
       
-      // Clamp d to half the shortest edge to avoid extending past the segment midpoint
       const maxD = Math.min(len1, len2) / 2;
       if (d > maxD) d = maxD;
 
@@ -74,6 +68,25 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
   element.holes.forEach(hole => {
     traces.push(...analyzeCorners(hole, tol, 'glass'));
   });
+  
+  // Create mirrored original element
+  const mirroredOriginalPerimeter = {
+    ...element.perimeter,
+    id: `${element.perimeter.id}_orig`,
+    polygon: { points: element.perimeter.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+  };
+  const mirroredOriginalHoles = element.holes.map((hole, i) => ({
+    ...hole,
+    id: `${hole.id}_orig`,
+    polygon: { points: hole.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+  }));
+  const mirroredOriginalElement: Element = {
+    ...element,
+    id: `${element.id}_orig`,
+    perimeter: mirroredOriginalPerimeter,
+    holes: mirroredOriginalHoles
+  };
+
   // Perimeter offset inward by glass_offset
   const perimeterOffset = offsetPolygon(element.perimeter.polygon, -glassOffset);
   
@@ -89,47 +102,51 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
       actionStage: 'glass_build',
       repairApplied: false
     });
+    return { elements: [mirroredOriginalElement], traces };
   }
 
-  // Mirror final Glass geometry exactly once (X-axis mirror)
-  const processedPerimeterPoly = perimeterOffset[0] ? applyChamfers({ points: perimeterOffset[0].points }, chamferLength, tol) : applyChamfers(element.perimeter.polygon, chamferLength, tol);
-  
-  const mirroredPerimeter = {
-    ...element.perimeter,
-    polygon: { points: processedPerimeterPoly.points.map(pt => ({ x: -pt.x, y: pt.y })) }
-  };
+  // Clip holes against perimeter to prevent overlap
+  const usableMaterials = getUsableMaterial(
+    perimeterOffset[0], 
+    holesOffset.map(ho => ho[0]).filter(Boolean)
+  );
 
-  const mirroredHoles = holesOffset.map((ho, i) => {
-    const processedHolePoly = ho[0] ? applyChamfers({ points: ho[0].points }, chamferLength, tol) : applyChamfers(element.holes[i].polygon, chamferLength, tol);
-    return {
-      ...element.holes[i],
-      polygon: { points: processedHolePoly.points.map(pt => ({ x: -pt.x, y: pt.y })) }
-    };
-  });
+  if (usableMaterials.length === 0) {
+    return { elements: [mirroredOriginalElement], traces };
+  }
 
-  const processedElement = {
-    ...element,
-    perimeter: mirroredPerimeter,
-    holes: mirroredHoles
-  };
+  const processedElements: Element[] = [mirroredOriginalElement];
 
-  const mirroredSourceElement = {
-    ...element,
-    id: element.id + '_mirrored_src',
-    perimeter: {
+  for (let i = 0; i < usableMaterials.length; i++) {
+    const material = usableMaterials[i];
+    
+    const processedPerimeterPoly = applyChamfers(material.perimeter, 'perimeter', chamferLength, tol);
+    
+    const mirroredPerimeter = {
       ...element.perimeter,
-      id: element.perimeter.id + '_mirrored_src',
-      polygon: { points: element.perimeter.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
-    },
-    holes: element.holes.map(h => ({
-      ...h,
-      id: h.id + '_mirrored_src',
-      polygon: { points: h.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
-    }))
-  };
+      id: `${element.perimeter.id}_${i}`,
+      polygon: { points: processedPerimeterPoly.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+    };
+
+    const mirroredHoles = material.holes.map((holePoly, j) => {
+      const processedHolePoly = applyChamfers(holePoly, 'hole', chamferLength, tol);
+      return {
+        ...element.holes[0], // Copy properties from first hole as fallback
+        id: `${element.id}_hole_${i}_${j}`,
+        polygon: { points: processedHolePoly.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+      };
+    });
+
+    processedElements.push({
+      ...element,
+      id: `${element.id}_${i}`,
+      perimeter: mirroredPerimeter,
+      holes: mirroredHoles
+    });
+  }
 
   return {
-    elements: [processedElement, mirroredSourceElement],
+    elements: processedElements,
     traces
   };
 }

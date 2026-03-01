@@ -112,6 +112,18 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
         
+        {/* Fill path for all borders using evenodd to cut out holes */}
+        <path
+          d={borders.filter(b => !b.id.endsWith('_orig')).map(border => {
+            const pts = border.polygon.points;
+            if (pts.length < 3) return '';
+            return `M ${pts[0].x},${pts[0].y} ` + pts.slice(1).map(p => `L ${p.x},${p.y}`).join(' ') + ' Z';
+          }).join(' ')}
+          fill="rgba(0, 0, 255, 0.1)"
+          fillRule="evenodd"
+        />
+
+        {/* Strokes and interactive points */}
         {[...borders].sort((a, b) => (a.role === 'perimeter' ? -1 : 1)).map(border => {
           const pts = border.polygon.points;
           if (pts.length < 3) return null;
@@ -121,8 +133,8 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
             <g key={border.id}>
               <polygon
                 points={pointsStr}
-                fill={border.role === 'hole' ? '#FFFFFF' : 'rgba(0, 0, 255, 0.1)'}
-                stroke={border.role === 'hole' ? '#22c55e' : '#3b82f6'}
+                fill="none"
+                stroke={border.id.endsWith('_orig') ? '#ef4444' : (border.role === 'hole' ? '#22c55e' : '#3b82f6')}
                 strokeWidth="2"
                 vectorEffect="non-scaling-stroke"
               />

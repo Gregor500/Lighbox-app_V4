@@ -16,7 +16,7 @@ export function analyzeCorners(border: Border, tol: Tolerances, target: 'glass' 
     const pNext = pts[(i + 1) % n];
 
     const angleRad = getInteriorAngle(pPrev, pCurr, pNext, isCCW);
-    const angleDeg = angleRad * (180 / Math.PI);
+    let angleDeg = angleRad * (180 / Math.PI);
 
     // To handle floating point inaccuracies
     const isInteriorUsable = angleDeg < 179.99;

@@ -1,8 +1,8 @@
 import { Element, Diagnostic, Tolerances, CornerTrace, PolygonApprox, Point2 } from '../types';
-import { offsetPolygon } from '../offset';
+import { offsetPolygon, getUsableMaterial } from '../offset';
 import { analyzeCorners } from '../corners';
 
-function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Tolerances): PolygonApprox {
+function applyChamfers(poly: PolygonApprox, role: 'perimeter' | 'hole', chamferLength: number, tol: Tolerances): PolygonApprox {
   if (chamferLength <= 0) return poly;
   
   // Create a temporary border to analyze corners
@@ -10,7 +10,7 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Toleranc
     id: 'temp',
     loop: { segments: [] },
     polygon: poly,
-    role: 'perimeter' as any,
+    role: role,
     depth: 0,
     parentId: null
   };
@@ -43,14 +43,8 @@ function applyChamfers(poly: PolygonApprox, chamferLength: number, tol: Toleranc
 
       const angleRad = trace.interiorAngleDeg * Math.PI / 180;
       
-      // Calculate distance d along the edge to achieve the desired crosscut length C
-      // Split the acute interior angle into two right-angle triangles.
-      // The opposite leg of the right-angle triangle is C / 2.
-      // The hypotenuse is the distance d along the edge.
-      // sin(theta / 2) = (C / 2) / d  =>  d = (C / 2) / sin(theta / 2)
       let d = (chamferLength / 2) / Math.sin(angleRad / 2);
       
-      // Clamp d to half the shortest edge to avoid extending past the segment midpoint
       const maxD = Math.min(len1, len2) / 2;
       if (d > maxD) d = maxD;
 
@@ -74,6 +68,7 @@ export function buildBacking(element: Element, glassOffset: number, chamferLengt
   element.holes.forEach(hole => {
     traces.push(...analyzeCorners(hole, tol, 'backing'));
   });
+  
   // Perimeter offset inward by glass_offset
   const perimeterOffset = offsetPolygon(element.perimeter.polygon, -glassOffset);
   
@@ -89,20 +84,34 @@ export function buildBacking(element: Element, glassOffset: number, chamferLengt
       actionStage: 'backing_build',
       repairApplied: false
     });
+    return { element, traces };
   }
 
-  // Not mirrored
-  const processedPerimeterPoly = perimeterOffset[0] ? applyChamfers({ points: perimeterOffset[0].points }, chamferLength, tol) : applyChamfers(element.perimeter.polygon, chamferLength, tol);
+  // Clip holes against perimeter to prevent overlap
+  const usableMaterials = getUsableMaterial(
+    perimeterOffset[0], 
+    holesOffset.map(ho => ho[0]).filter(Boolean)
+  );
+
+  if (usableMaterials.length === 0) {
+    return { element, traces };
+  }
+
+  // Backing typically returns one element. If the boolean operation splits it, we just take the first one for now.
+  const material = usableMaterials[0];
+
+  const processedPerimeterPoly = applyChamfers(material.perimeter, 'perimeter', chamferLength, tol);
   
   const backedPerimeter = {
     ...element.perimeter,
     polygon: processedPerimeterPoly
   };
 
-  const backedHoles = holesOffset.map((ho, i) => {
-    const processedHolePoly = ho[0] ? applyChamfers({ points: ho[0].points }, chamferLength, tol) : applyChamfers(element.holes[i].polygon, chamferLength, tol);
+  const backedHoles = material.holes.map((holePoly, i) => {
+    const processedHolePoly = applyChamfers(holePoly, 'hole', chamferLength, tol);
     return {
-      ...element.holes[i],
+      ...element.holes[0], // fallback
+      id: `${element.id}_hole_${i}`,
       polygon: processedHolePoly
     };
   });
