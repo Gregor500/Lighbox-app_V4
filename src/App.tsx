@@ -19,7 +19,7 @@ export default function App() {
   const [borders, setBorders] = useState<Border[]>(getSampleBorders());
   const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
-  const [vinylRegions, setVinylRegions] = useState<{ color: string; polygons: Point2[][] }[]>([]);
+  const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
   const [showVinylMapping, setShowVinylMapping] = useState(false);
   const [glassOffset, setGlassOffset] = useState<number>(2);
   const [chamferLength, setChamferLength] = useState<number>(20);
@@ -70,21 +70,7 @@ export default function App() {
       const region = vinylRegions.find(r => r.color === color);
       if (!region) return;
       
-      // Convert polygons to Elements for export
-      const elements: Element[] = region.polygons.map((poly, i) => ({
-        id: `vinyl_${color}_${i}`,
-        perimeter: {
-          id: `p_${i}`,
-          loop: { segments: [] },
-          polygon: { points: poly },
-          role: 'perimeter',
-          depth: 0,
-          parentId: null
-        },
-        holes: []
-      }));
-      
-      const dxfStr = exportToDXF(elements, {
+      const dxfStr = exportToDXF(region.elements, {
         type: `Vinyl (${color})`,
         routerBitDiameter: vinylRouterBitDiameter,
         materialThickness,
@@ -143,20 +129,7 @@ export default function App() {
 
     // Add custom vinyl colors
     vinylRegions.forEach(region => {
-      const elements: Element[] = region.polygons.map((poly, i) => ({
-        id: `vinyl_${region.color}_${i}`,
-        perimeter: {
-          id: `p_${i}`,
-          loop: { segments: [] },
-          polygon: { points: poly },
-          role: 'perimeter',
-          depth: 0,
-          parentId: null
-        },
-        holes: []
-      }));
-      
-      const dxfStr = exportToDXF(elements, {
+      const dxfStr = exportToDXF(region.elements, {
         type: `Vinyl (${region.color})`,
         routerBitDiameter: vinylRouterBitDiameter,
         materialThickness,
@@ -355,22 +328,9 @@ export default function App() {
             </div>
             
             {vinylRegions.map(region => {
-              const elements: Element[] = region.polygons.map((poly, i) => ({
-                id: `vinyl_${region.color}_${i}`,
-                perimeter: {
-                  id: `p_${i}`,
-                  loop: { segments: [] },
-                  polygon: { points: poly },
-                  role: 'perimeter',
-                  depth: 0,
-                  parentId: null
-                },
-                holes: []
-              }));
-
               return (
                 <div key={region.color} className="flex flex-col gap-2">
-                  <GeometryEditor borders={getBordersFromElements(elements)} readonly title={`Custom Vinyl (${region.color})`} />
+                  <GeometryEditor borders={getBordersFromElements(region.elements)} readonly title={`Custom Vinyl (${region.color})`} />
                   <button onClick={() => handleDownload(`vinyl_color_${region.color}`)} className="flex items-center justify-center gap-2 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 py-2 rounded transition-colors text-xs font-bold">
                     <Download size={14} /> Download {region.color} DXF
                   </button>

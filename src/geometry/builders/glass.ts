@@ -77,8 +77,8 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
   // Perimeter offset inward by glass_offset
   const perimeterOffset = offsetPolygon(element.perimeter.polygon, -glassOffset);
   
-  // Hole offset outward by glass_offset
-  const holesOffset = element.holes.map(hole => offsetPolygon(hole.polygon, -glassOffset));
+  // Hole offset outward by glass_offset (positive value expands the hole into the usable shape)
+  const holesOffset = element.holes.map(hole => offsetPolygon(hole.polygon, glassOffset));
 
   if (perimeterOffset.length === 0) {
     diagnostics.push({

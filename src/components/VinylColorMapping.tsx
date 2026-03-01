@@ -1,17 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Border, Point2 } from '../geometry/types';
+import React, { useState, useRef } from 'react';
+import { Border, Point2, Element, DEFAULT_TOLERANCES } from '../geometry/types';
 import { floodFillAndTrace } from '../geometry/flood-fill';
+import { polygonContainsPolygon } from '../geometry/math';
 
 interface VinylColorMappingProps {
   borders: Border[];
   onBordersChange: (borders: Border[]) => void;
-  onVinylRegionsChange: (regions: { color: string; polygons: Point2[][] }[]) => void;
+  onVinylRegionsChange: (regions: { color: string; elements: Element[] }[]) => void;
 }
 
 export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChange }: VinylColorMappingProps) {
   const [mode, setMode] = useState<'shape' | 'paint'>('shape');
   const [selectedColor, setSelectedColor] = useState<string>('#FF0000');
-  const [vinylRegions, setVinylRegions] = useState<{ color: string; polygons: Point2[][] }[]>([]);
+  const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
   
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -73,13 +74,36 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
     
     const newPolygon = floodFillAndTrace(borders, coords);
     if (newPolygon && newPolygon.length > 2) {
+      // Find holes inside this newPolygon
+      const holes: Border[] = [];
+      for (const b of borders) {
+        if (b.role === 'hole') {
+          if (polygonContainsPolygon({ points: newPolygon }, b.polygon, DEFAULT_TOLERANCES)) {
+            holes.push(b);
+          }
+        }
+      }
+      
+      const newElement: Element = {
+        id: `vinyl_${Date.now()}`,
+        perimeter: {
+          id: `p_${Date.now()}`,
+          loop: { segments: [] },
+          polygon: { points: newPolygon },
+          role: 'perimeter',
+          depth: 0,
+          parentId: null
+        },
+        holes: holes
+      };
+
       const newRegions = [...vinylRegions];
       let colorGroup = newRegions.find(r => r.color === selectedColor);
       if (!colorGroup) {
-        colorGroup = { color: selectedColor, polygons: [] };
+        colorGroup = { color: selectedColor, elements: [] };
         newRegions.push(colorGroup);
       }
-      colorGroup.polygons.push(newPolygon);
+      colorGroup.elements.push(newElement);
       setVinylRegions(newRegions);
       onVinylRegionsChange(newRegions);
     }
@@ -164,16 +188,27 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
           {/* Draw filled regions */}
           {vinylRegions.map(region => (
             <g key={region.color}>
-              {region.polygons.map((poly, i) => (
-                <polygon
-                  key={i}
-                  points={poly.map(p => `${p.x},${p.y}`).join(' ')}
-                  fill={region.color}
-                  fillOpacity={0.8}
-                  stroke={region.color}
-                  strokeWidth="1"
-                  vectorEffect="non-scaling-stroke"
-                />
+              {region.elements.map((elem, i) => (
+                <g key={i}>
+                  <polygon
+                    points={elem.perimeter.polygon.points.map(p => `${p.x},${p.y}`).join(' ')}
+                    fill={region.color}
+                    fillOpacity={0.8}
+                    stroke={region.color}
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {elem.holes.map((hole, j) => (
+                    <polygon
+                      key={`hole-${j}`}
+                      points={hole.polygon.points.map(p => `${p.x},${p.y}`).join(' ')}
+                      fill="#FFFFFF"
+                      stroke={region.color}
+                      strokeWidth="1"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
+                </g>
               ))}
             </g>
           ))}
