@@ -18,6 +18,8 @@ export interface ExportParams {
   workArea?: { width: number; height: number } | null;
   attachmentTrimCutDepth?: number | string;
   attachmentTrimRouterBitDiameter?: number;
+  sideDepth?: number;
+  sideThickness?: number;
 }
 
 export function exportToDXF(elements: Element[], params?: ExportParams): string {
@@ -75,6 +77,12 @@ export function exportToDXF(elements: Element[], params?: ExportParams): string 
     }
     if (params.attachmentTrimRouterBitDiameter !== undefined) {
       textLines.push(`Attachment Trim Router Bit Dia: ${params.attachmentTrimRouterBitDiameter}mm`);
+    }
+    if (params.sideDepth !== undefined) {
+      textLines.push(`Side Depth: ${params.sideDepth}mm`);
+    }
+    if (params.sideThickness !== undefined) {
+      textLines.push(`Side Thickness: ${params.sideThickness}mm`);
     }
 
     let currentY = workAreaMaxY + 20; // Start above the geometry or work area

@@ -39,6 +39,8 @@ export default function App() {
   const [glassType, setGlassType] = useState<string>('Opal');
   const [materialColor, setMaterialColor] = useState<string>('White');
   const [workArea, setWorkArea] = useState<string>('default');
+  const [sideDepth, setSideDepth] = useState<number>(100);
+  const [sideThickness, setSideThickness] = useState<number>(1.0);
 
   // Calculated
   const filletRadius = glassRouterBitDiameter / 2;
@@ -98,7 +100,8 @@ export default function App() {
         materialColor,
         workArea: workAreaDims,
         attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
-        attachmentTrimRouterBitDiameter
+        attachmentTrimRouterBitDiameter,
+        sideDepth
       });
       const blob = new Blob([dxfStr], { type: 'application/dxf' });
       saveAs(blob, `vinyl_${color.replace('#', '')}_export.dxf`);
@@ -120,7 +123,9 @@ export default function App() {
       materialColor,
       workArea: workAreaDims,
       attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
-      attachmentTrimRouterBitDiameter
+      attachmentTrimRouterBitDiameter,
+      sideDepth: type === 'kulg' ? sideDepth : undefined,
+      sideThickness: type === 'kulg' ? sideThickness : undefined
     });
     const blob = new Blob([dxfStr], { type: 'application/dxf' });
     saveAs(blob, `${type}_export.dxf`);
@@ -147,7 +152,9 @@ export default function App() {
         materialColor,
         workArea: workAreaDims,
         attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
-        attachmentTrimRouterBitDiameter
+        attachmentTrimRouterBitDiameter,
+        sideDepth: type === 'kulg' ? sideDepth : undefined,
+        sideThickness: type === 'kulg' ? sideThickness : undefined
       });
       zip.file(`${type}_export.dxf`, dxfStr);
     });
@@ -163,7 +170,8 @@ export default function App() {
         materialColor,
         workArea: workAreaDims,
         attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
-        attachmentTrimRouterBitDiameter
+        attachmentTrimRouterBitDiameter,
+        sideDepth
       });
       zip.file(`vinyl_${region.color.replace('#', '')}_export.dxf`, dxfStr);
     });
@@ -253,6 +261,22 @@ export default function App() {
               </select>
             </label>
           </div>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Side Depth (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{sideDepth}</span>
+            </div>
+            <input type="range" min="30" max="200" step="1" value={sideDepth} onChange={e => setSideDepth(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Side Thickness (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{sideThickness}</span>
+            </div>
+            <input type="range" min="0.8" max="2.5" step="0.1" value={sideThickness} onChange={e => setSideThickness(Number(e.target.value))} className="w-full" />
+          </label>
 
           <label className="flex flex-col gap-1">
             <div className="flex justify-between">
