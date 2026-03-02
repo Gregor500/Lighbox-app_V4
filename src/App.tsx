@@ -21,18 +21,27 @@ export default function App() {
   const [report, setReport] = useState<FullReport | null>(null);
   const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
   const [showVinylMapping, setShowVinylMapping] = useState(false);
+  
+  // Backend in the future
   const [glassOffset, setGlassOffset] = useState<number>(2);
   const [backingOffset, setBackingOffset] = useState<number>(2);
   const [chamferLength, setChamferLength] = useState<number>(20);
-  const [filletRadius, setFilletRadius] = useState<number>(20);
+
+  // Frontend
   const [glassRouterBitDiameter, setGlassRouterBitDiameter] = useState<number>(3);
   const [backingRouterBitDiameter, setBackingRouterBitDiameter] = useState<number>(3);
-  const [vinylRouterBitDiameter, setVinylRouterBitDiameter] = useState<number>(3);
-  const [kulgRouterBitDiameter, setKulgRouterBitDiameter] = useState<number>(3);
-  const [materialThickness, setMaterialThickness] = useState<number>(1.5);
+  const [materialThickness, setMaterialThickness] = useState<number>(4);
   const [cutDepth, setCutDepth] = useState<number>(0.2);
-  const [glassType, setGlassType] = useState<string>('Clear');
+  const [isCutDepthThrough, setIsCutDepthThrough] = useState<boolean>(false);
+  const [attachmentTrimCutDepth, setAttachmentTrimCutDepth] = useState<number>(0.5);
+  const [isAttachmentTrimCutDepthHalf, setIsAttachmentTrimCutDepthHalf] = useState<boolean>(false);
+  const [attachmentTrimRouterBitDiameter, setAttachmentTrimRouterBitDiameter] = useState<number>(3);
+  const [glassType, setGlassType] = useState<string>('Opal');
   const [materialColor, setMaterialColor] = useState<string>('White');
+  const [workArea, setWorkArea] = useState<string>('default');
+
+  // Calculated
+  const filletRadius = glassRouterBitDiameter / 2;
 
   useEffect(() => {
     const config = {
@@ -64,9 +73,17 @@ export default function App() {
     setIsImported(true);
   };
 
+  const getWorkAreaDimensions = () => {
+    if (workArea === '2500x1250') return { width: 2500, height: 1250 };
+    if (workArea === '3000x1500') return { width: 3000, height: 1500 };
+    return null;
+  };
+
   const handleDownload = (type: 'glass' | 'backing' | 'vinyl' | 'kulg' | string) => {
     if (!report) return;
     
+    const workAreaDims = getWorkAreaDimensions();
+
     if (type.startsWith('vinyl_color_')) {
       const color = type.replace('vinyl_color_', '');
       const region = vinylRegions.find(r => r.color === color);
@@ -74,11 +91,14 @@ export default function App() {
       
       const dxfStr = exportToDXF(region.elements, {
         type: `Vinyl (${color})`,
-        routerBitDiameter: vinylRouterBitDiameter,
+        routerBitDiameter: 0, // Vinyl doesn't have a router
         materialThickness,
-        cutDepth,
+        cutDepth: isCutDepthThrough ? 'Through' : cutDepth,
         glassType,
-        materialColor
+        materialColor,
+        workArea: workAreaDims,
+        attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
+        attachmentTrimRouterBitDiameter
       });
       const blob = new Blob([dxfStr], { type: 'application/dxf' });
       saveAs(blob, `vinyl_${color.replace('#', '')}_export.dxf`);
@@ -87,19 +107,20 @@ export default function App() {
 
     const elements = report.pipelineResult[type as keyof typeof report.pipelineResult] as any;
     
-    let bitDiameter = 3;
+    let bitDiameter = 0;
     if (type === 'glass') bitDiameter = glassRouterBitDiameter;
     if (type === 'backing') bitDiameter = backingRouterBitDiameter;
-    if (type === 'vinyl') bitDiameter = vinylRouterBitDiameter;
-    if (type === 'kulg') bitDiameter = kulgRouterBitDiameter;
 
     const dxfStr = exportToDXF(elements, {
       type,
       routerBitDiameter: bitDiameter,
       materialThickness,
-      cutDepth,
+      cutDepth: isCutDepthThrough ? 'Through' : cutDepth,
       glassType,
-      materialColor
+      materialColor,
+      workArea: workAreaDims,
+      attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
+      attachmentTrimRouterBitDiameter
     });
     const blob = new Blob([dxfStr], { type: 'application/dxf' });
     saveAs(blob, `${type}_export.dxf`);
@@ -108,23 +129,25 @@ export default function App() {
   const handleExtractAll = async () => {
     if (!report) return;
     const zip = new JSZip();
+    const workAreaDims = getWorkAreaDimensions();
     
     ['glass', 'backing', 'vinyl', 'kulg'].forEach(type => {
       const elements = report.pipelineResult[type as keyof typeof report.pipelineResult] as any;
       
-      let bitDiameter = 3;
+      let bitDiameter = 0;
       if (type === 'glass') bitDiameter = glassRouterBitDiameter;
       if (type === 'backing') bitDiameter = backingRouterBitDiameter;
-      if (type === 'vinyl') bitDiameter = vinylRouterBitDiameter;
-      if (type === 'kulg') bitDiameter = kulgRouterBitDiameter;
 
       const dxfStr = exportToDXF(elements, {
         type,
         routerBitDiameter: bitDiameter,
         materialThickness,
-        cutDepth,
+        cutDepth: isCutDepthThrough ? 'Through' : cutDepth,
         glassType,
-        materialColor
+        materialColor,
+        workArea: workAreaDims,
+        attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
+        attachmentTrimRouterBitDiameter
       });
       zip.file(`${type}_export.dxf`, dxfStr);
     });
@@ -133,11 +156,14 @@ export default function App() {
     vinylRegions.forEach(region => {
       const dxfStr = exportToDXF(region.elements, {
         type: `Vinyl (${region.color})`,
-        routerBitDiameter: vinylRouterBitDiameter,
+        routerBitDiameter: 0,
         materialThickness,
-        cutDepth,
+        cutDepth: isCutDepthThrough ? 'Through' : cutDepth,
         glassType,
-        materialColor
+        materialColor,
+        workArea: workAreaDims,
+        attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
+        attachmentTrimRouterBitDiameter
       });
       zip.file(`vinyl_${region.color.replace('#', '')}_export.dxf`, dxfStr);
     });
@@ -159,6 +185,8 @@ export default function App() {
         
         <section className="bg-gray-50 p-4 border border-gray-200 rounded flex flex-col gap-4">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Settings size={18}/> Parameters</h2>
+          
+          <h3 className="font-bold mt-2 border-b border-gray-200 pb-1 text-blue-800">Backend (Future)</h3>
           
           <label className="flex flex-col gap-1">
             <div className="flex justify-between">
@@ -189,11 +217,34 @@ export default function App() {
               <span className="font-semibold">Fillet Radius (mm)</span>
               <span className="text-blue-600 font-bold">{filletRadius}</span>
             </div>
-            <input type="range" min="0" max="20" step="0.5" value={filletRadius} onChange={e => setFilletRadius(Number(e.target.value))} className="w-full" />
+            <span className="text-xs text-gray-500 italic">Calculated (1/2 Glass Router Bit Dia)</span>
           </label>
 
-          <h3 className="font-bold mt-2 border-b border-gray-200 pb-1">Manufacturing</h3>
+          <h3 className="font-bold mt-4 border-b border-gray-200 pb-1 text-green-800">Frontend (Manufacturing)</h3>
           
+          <div className="flex gap-2">
+            <label className="flex flex-col gap-1 flex-1">
+              <span className="font-semibold text-xs">Thickness</span>
+              <input type="number" min="0.5" step="0.5" value={materialThickness} onChange={e => setMaterialThickness(Number(e.target.value))} className="border border-gray-300 p-1 rounded text-xs bg-white w-full" />
+            </label>
+            <label className="flex flex-col gap-1 flex-1">
+              <span className="font-semibold text-xs">Glass</span>
+              <select value={glassType} onChange={e => setGlassType(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white w-full">
+                <option value="Clear">Clear</option>
+                <option value="Opal">Opal</option>
+                <option value="Frosted">Frosted</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 flex-1">
+              <span className="font-semibold text-xs">Color</span>
+              <select value={materialColor} onChange={e => setMaterialColor(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white w-full">
+                <option value="White">White</option>
+                <option value="Black">Black</option>
+                <option value="Silver">Silver</option>
+              </select>
+            </label>
+          </div>
+
           <label className="flex flex-col gap-1">
             <div className="flex justify-between">
               <span className="font-semibold text-xs">Glass Router Bit Dia (mm)</span>
@@ -211,52 +262,51 @@ export default function App() {
           </label>
 
           <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Vinyl Router Bit Dia (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{vinylRouterBitDiameter}</span>
-            </div>
-            <input type="range" min="1" max="10" step="0.5" value={vinylRouterBitDiameter} onChange={e => setVinylRouterBitDiameter(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Külg Router Bit Dia (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{kulgRouterBitDiameter}</span>
-            </div>
-            <input type="range" min="1" max="10" step="0.5" value={kulgRouterBitDiameter} onChange={e => setKulgRouterBitDiameter(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Material Thickness (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{materialThickness}</span>
-            </div>
-            <input type="range" min="0.5" max="10" step="0.5" value={materialThickness} onChange={e => setMaterialThickness(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="font-semibold text-xs">Cut Depth (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{cutDepth}</span>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 text-xs cursor-pointer">
+                  <input type="checkbox" checked={isCutDepthThrough} onChange={e => setIsCutDepthThrough(e.target.checked)} />
+                  Through
+                </label>
+                {!isCutDepthThrough && <span className="text-gray-600 font-bold text-xs w-6 text-right">{cutDepth}</span>}
+              </div>
             </div>
-            <input type="range" min="0.1" max="5" step="0.1" value={cutDepth} onChange={e => setCutDepth(Number(e.target.value))} className="w-full" />
+            {!isCutDepthThrough && (
+              <input type="range" min="0.1" max="5" step="0.1" value={cutDepth} onChange={e => setCutDepth(Number(e.target.value))} className="w-full" />
+            )}
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-xs">Glass Type</span>
-            <select value={glassType} onChange={e => setGlassType(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
-              <option value="Clear">Clear</option>
-              <option value="Opal">Opal</option>
-              <option value="Frosted">Frosted</option>
-            </select>
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-xs">Attachment Trim Cut Depth (mm)</span>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 text-xs cursor-pointer">
+                  <input type="checkbox" checked={isAttachmentTrimCutDepthHalf} onChange={e => setIsAttachmentTrimCutDepthHalf(e.target.checked)} />
+                  Half
+                </label>
+                {!isAttachmentTrimCutDepthHalf && <span className="text-gray-600 font-bold text-xs w-6 text-right">{attachmentTrimCutDepth}</span>}
+              </div>
+            </div>
+            {!isAttachmentTrimCutDepthHalf && (
+              <input type="range" min="0.1" max="5" step="0.1" value={attachmentTrimCutDepth} onChange={e => setAttachmentTrimCutDepth(Number(e.target.value))} className="w-full" />
+            )}
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-xs">Material Color</span>
-            <select value={materialColor} onChange={e => setMaterialColor(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
-              <option value="White">White</option>
-              <option value="Black">Black</option>
-              <option value="Silver">Silver</option>
+            <div className="flex justify-between">
+              <span className="font-semibold text-xs">Attachment Trim Router Bit Dia (mm)</span>
+              <span className="text-gray-600 font-bold text-xs">{attachmentTrimRouterBitDiameter}</span>
+            </div>
+            <input type="range" min="1" max="10" step="0.5" value={attachmentTrimRouterBitDiameter} onChange={e => setAttachmentTrimRouterBitDiameter(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold text-xs">Work Area</span>
+            <select value={workArea} onChange={e => setWorkArea(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
+              <option value="default">Default (As-is)</option>
+              <option value="2500x1250">2500 x 1250 mm</option>
+              <option value="3000x1500">3000 x 1500 mm</option>
             </select>
           </label>
         </section>

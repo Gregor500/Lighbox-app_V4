@@ -12,9 +12,12 @@ export interface ExportParams {
   type: string;
   routerBitDiameter: number;
   materialThickness: number;
-  cutDepth: number;
+  cutDepth: number | string;
   glassType: string;
   materialColor: string;
+  workArea?: { width: number; height: number } | null;
+  attachmentTrimCutDepth?: number | string;
+  attachmentTrimRouterBitDiameter?: number;
 }
 
 export function exportToDXF(elements: Element[], params?: ExportParams): string {
@@ -22,30 +25,65 @@ export function exportToDXF(elements: Element[], params?: ExportParams): string 
   
   // Add manufacturing text if params are provided
   if (params && elements.length > 0) {
-    // Find a reasonable place to put the text (e.g., near the first element)
-    const firstPoly = elements[0].perimeter.polygon;
     let minX = Infinity;
     let maxY = -Infinity;
-    for (const pt of firstPoly.points) {
-      if (pt.x < minX) minX = pt.x;
-      if (pt.y > maxY) maxY = pt.y;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    for (const el of elements) {
+      for (const pt of el.perimeter.polygon.points) {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+      }
+    }
+
+    let workAreaMinX = minX;
+    let workAreaMaxY = maxY;
+
+    if (params.workArea) {
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      workAreaMinX = cx - params.workArea.width / 2;
+      const workAreaMaxX = cx + params.workArea.width / 2;
+      const workAreaMinY = cy - params.workArea.height / 2;
+      workAreaMaxY = cy + params.workArea.height / 2;
+      
+      // Draw work area rectangle
+      const workAreaPoly = {
+        points: [
+          { x: workAreaMinX, y: workAreaMinY },
+          { x: workAreaMaxX, y: workAreaMinY },
+          { x: workAreaMaxX, y: workAreaMaxY },
+          { x: workAreaMinX, y: workAreaMaxY }
+        ]
+      };
+      str += polylineToDxf(workAreaPoly, 'WorkArea');
     }
     
     const textLines = [
       `Type: ${params.type.toUpperCase()}`,
       `Router Bit Diameter: ${params.routerBitDiameter}mm`,
       `Material Thickness: ${params.materialThickness}mm`,
-      `Cut Depth: ${params.cutDepth}mm`,
+      `Cut Depth: ${params.cutDepth}${typeof params.cutDepth === 'number' ? 'mm' : ''}`,
       `Glass Type: ${params.glassType}`,
       `Material Color: ${params.materialColor}`
     ];
 
-    let currentY = maxY + 20; // Start above the geometry
+    if (params.attachmentTrimCutDepth !== undefined) {
+      textLines.push(`Attachment Trim Cut Depth: ${params.attachmentTrimCutDepth}${typeof params.attachmentTrimCutDepth === 'number' ? 'mm' : ''}`);
+    }
+    if (params.attachmentTrimRouterBitDiameter !== undefined) {
+      textLines.push(`Attachment Trim Router Bit Dia: ${params.attachmentTrimRouterBitDiameter}mm`);
+    }
+
+    let currentY = workAreaMaxY + 20; // Start above the geometry or work area
     const textHeight = 5;
 
-    for (const line of textLines) {
-      str += `  0\nTEXT\n  8\nManufacturing_Info\n 10\n${minX.toFixed(4)}\n 20\n${currentY.toFixed(4)}\n 40\n${textHeight}\n  1\n${line}\n`;
-      currentY -= (textHeight * 1.5);
+    // Draw from bottom to top so it doesn't overlap the work area
+    for (let i = textLines.length - 1; i >= 0; i--) {
+      str += `  0\nTEXT\n  8\nManufacturing_Info\n 10\n${workAreaMinX.toFixed(4)}\n 20\n${currentY.toFixed(4)}\n 40\n${textHeight}\n  1\n${textLines[i]}\n`;
+      currentY += (textHeight * 1.5);
     }
   }
 
