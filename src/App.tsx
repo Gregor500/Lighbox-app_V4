@@ -21,6 +21,7 @@ export default function App() {
   const [report, setReport] = useState<FullReport | null>(null);
   const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
   const [showVinylMapping, setShowVinylMapping] = useState(false);
+  const [currentView, setCurrentView] = useState<'p6' | 'backend'>('p6');
   
   // Backend in the future
   const [glassOffset, setGlassOffset] = useState<number>(2);
@@ -185,154 +186,140 @@ export default function App() {
   const { results, pipelineResult } = report;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-6 font-mono text-sm max-w-[1600px] mx-auto text-gray-800">
-      
-      {/* Left Panel: Controls & Actions */}
-      <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6 sticky top-6 self-start">
-        <h1 className="text-2xl font-bold">Lightbox Engine</h1>
-        
-        <section className="bg-gray-50 p-4 border border-gray-200 rounded flex flex-col gap-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2"><Settings size={18}/> Parameters</h2>
-          
-          <h3 className="font-bold mt-2 border-b border-gray-200 pb-1 text-blue-800">Backend (Future)</h3>
-          
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold">Glass Offset (mm)</span>
-              <span className="text-blue-600 font-bold">{glassOffset}</span>
-            </div>
-            <input type="range" min="0" max="20" step="0.5" value={glassOffset} onChange={e => setGlassOffset(Number(e.target.value))} className="w-full" />
-          </label>
+    <div className="min-h-screen bg-gray-100 flex flex-col font-mono text-sm text-gray-800">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+        <h1 className="text-2xl font-bold tracking-tight">P6</h1>
+        <nav className="flex gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
+          <button 
+            onClick={() => setCurrentView('p6')} 
+            className={`px-4 py-1.5 rounded-md font-medium transition-colors ${currentView === 'p6' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            Engine
+          </button>
+          <button 
+            onClick={() => setCurrentView('backend')} 
+            className={`px-4 py-1.5 rounded-md font-medium transition-colors ${currentView === 'backend' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            Backend Parameters
+          </button>
+        </nav>
+      </header>
 
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold">Backing Offset (mm)</span>
-              <span className="text-blue-600 font-bold">{backingOffset}</span>
-            </div>
-            <input type="range" min="0" max="20" step="0.5" value={backingOffset} onChange={e => setBackingOffset(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold">Chamfer Length (mm)</span>
-              <span className="text-blue-600 font-bold">{chamferLength}</span>
-            </div>
-            <input type="range" min="0" max="20" step="0.5" value={chamferLength} onChange={e => setChamferLength(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold">Fillet Radius (mm)</span>
-              <span className="text-blue-600 font-bold">{filletRadius}</span>
-            </div>
-            <span className="text-xs text-gray-500 italic">Calculated (1/2 Glass Router Bit Dia)</span>
-          </label>
-
-          <h3 className="font-bold mt-4 border-b border-gray-200 pb-1 text-green-800">Frontend (Manufacturing)</h3>
-          
-          <label className="flex flex-col gap-1">
-            <span className="font-semibold text-xs">Work Area</span>
-            <select value={workArea} onChange={e => setWorkArea(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
-              <option value="default">Default (As-is)</option>
-              <option value="2500x1250">2500 x 1250 mm</option>
-              <option value="3000x1500">3000 x 1500 mm</option>
-            </select>
-          </label>
-
-          <div className="flex gap-2">
-            <label className="flex flex-col gap-1 flex-1">
-              <span className="font-semibold text-xs">Thickness</span>
-              <input type="number" min="0.5" step="0.5" value={materialThickness} onChange={e => setMaterialThickness(Number(e.target.value))} className="border border-gray-300 p-1 rounded text-xs bg-white w-full" />
-            </label>
-            <label className="flex flex-col gap-1 flex-1">
-              <span className="font-semibold text-xs">Glass</span>
-              <select value={glassType} onChange={e => setGlassType(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white w-full">
-                <option value="Clear">Clear</option>
-                <option value="Opal">Opal</option>
-                <option value="Frosted">Frosted</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 flex-1">
-              <span className="font-semibold text-xs">Color</span>
-              <select value={materialColor} onChange={e => setMaterialColor(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white w-full">
-                <option value="White">White</option>
-                <option value="Black">Black</option>
-                <option value="Silver">Silver</option>
-              </select>
-            </label>
-          </div>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Side Depth (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{sideDepth}</span>
-            </div>
-            <input type="range" min="30" max="200" step="1" value={sideDepth} onChange={e => setSideDepth(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Side Thickness (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{sideThickness}</span>
-            </div>
-            <input type="range" min="0.8" max="2.5" step="0.1" value={sideThickness} onChange={e => setSideThickness(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Glass Router Bit Dia (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{glassRouterBitDiameter}</span>
-            </div>
-            <input type="range" min="1" max="10" step="0.5" value={glassRouterBitDiameter} onChange={e => setGlassRouterBitDiameter(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Backing Router Bit Dia (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{backingRouterBitDiameter}</span>
-            </div>
-            <input type="range" min="1" max="10" step="0.5" value={backingRouterBitDiameter} onChange={e => setBackingRouterBitDiameter(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-xs">Cut Depth (mm)</span>
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1 text-xs cursor-pointer">
-                  <input type="checkbox" checked={isCutDepthThrough} onChange={e => setIsCutDepthThrough(e.target.checked)} />
-                  Through
+      <main className="flex-1 p-6 max-w-[1600px] mx-auto w-full">
+        {currentView === 'p6' ? (
+          <div className="flex flex-col lg:flex-row gap-6">
+            
+            {/* Left Panel: Controls & Actions */}
+            <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6 sticky top-24 self-start">
+              
+              <section className="bg-white p-4 border border-gray-200 rounded-xl shadow-sm flex flex-col gap-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2"><Settings size={18}/> Parameters</h2>
+                
+                <h3 className="font-bold mt-2 border-b border-gray-200 pb-1 text-green-800">Frontend (Manufacturing)</h3>
+                
+                <label className="flex flex-col gap-1">
+                  <span className="font-semibold text-xs">Work Area</span>
+                  <select value={workArea} onChange={e => setWorkArea(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
+                    <option value="default">Default (As-is)</option>
+                    <option value="2500x1250">2500 x 1250 mm</option>
+                    <option value="3000x1500">3000 x 1500 mm</option>
+                  </select>
                 </label>
-                {!isCutDepthThrough && <span className="text-gray-600 font-bold text-xs w-6 text-right">{cutDepth}</span>}
-              </div>
-            </div>
-            {!isCutDepthThrough && (
-              <input type="range" min="0.1" max="5" step="0.1" value={cutDepth} onChange={e => setCutDepth(Number(e.target.value))} className="w-full" />
-            )}
-          </label>
 
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-xs">Attachment Trim Cut Depth (mm)</span>
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1 text-xs cursor-pointer">
-                  <input type="checkbox" checked={isAttachmentTrimCutDepthHalf} onChange={e => setIsAttachmentTrimCutDepthHalf(e.target.checked)} />
-                  Half
+                <div className="flex gap-2">
+                  <label className="flex flex-col gap-1 flex-1">
+                    <span className="font-semibold text-xs">Thickness</span>
+                    <input type="number" min="0.5" step="0.5" value={materialThickness} onChange={e => setMaterialThickness(Number(e.target.value))} className="border border-gray-300 p-1 rounded text-xs bg-white w-full" />
+                  </label>
+                  <label className="flex flex-col gap-1 flex-1">
+                    <span className="font-semibold text-xs">Glass</span>
+                    <select value={glassType} onChange={e => setGlassType(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white w-full">
+                      <option value="Clear">Clear</option>
+                      <option value="Opal">Opal</option>
+                      <option value="Frosted">Frosted</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 flex-1">
+                    <span className="font-semibold text-xs">Color</span>
+                    <select value={materialColor} onChange={e => setMaterialColor(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white w-full">
+                      <option value="White">White</option>
+                      <option value="Black">Black</option>
+                      <option value="Silver">Silver</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Side Depth (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{sideDepth}</span>
+                  </div>
+                  <input type="range" min="30" max="200" step="1" value={sideDepth} onChange={e => setSideDepth(Number(e.target.value))} className="w-full" />
                 </label>
-                {!isAttachmentTrimCutDepthHalf && <span className="text-gray-600 font-bold text-xs w-6 text-right">{attachmentTrimCutDepth}</span>}
-              </div>
-            </div>
-            {!isAttachmentTrimCutDepthHalf && (
-              <input type="range" min="0.1" max="5" step="0.1" value={attachmentTrimCutDepth} onChange={e => setAttachmentTrimCutDepth(Number(e.target.value))} className="w-full" />
-            )}
-          </label>
 
-          <label className="flex flex-col gap-1">
-            <div className="flex justify-between">
-              <span className="font-semibold text-xs">Attachment Trim Router Bit Dia (mm)</span>
-              <span className="text-gray-600 font-bold text-xs">{attachmentTrimRouterBitDiameter}</span>
-            </div>
-            <input type="range" min="1" max="10" step="0.5" value={attachmentTrimRouterBitDiameter} onChange={e => setAttachmentTrimRouterBitDiameter(Number(e.target.value))} className="w-full" />
-          </label>
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Side Thickness (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{sideThickness}</span>
+                  </div>
+                  <input type="range" min="0.8" max="2.5" step="0.1" value={sideThickness} onChange={e => setSideThickness(Number(e.target.value))} className="w-full" />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Glass Router Bit Dia (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{glassRouterBitDiameter}</span>
+                  </div>
+                  <input type="range" min="1" max="10" step="0.5" value={glassRouterBitDiameter} onChange={e => setGlassRouterBitDiameter(Number(e.target.value))} className="w-full" />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Backing Router Bit Dia (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{backingRouterBitDiameter}</span>
+                  </div>
+                  <input type="range" min="1" max="10" step="0.5" value={backingRouterBitDiameter} onChange={e => setBackingRouterBitDiameter(Number(e.target.value))} className="w-full" />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-xs">Cut Depth (mm)</span>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input type="checkbox" checked={isCutDepthThrough} onChange={e => setIsCutDepthThrough(e.target.checked)} />
+                        Through
+                      </label>
+                      {!isCutDepthThrough && <span className="text-gray-600 font-bold text-xs w-6 text-right">{cutDepth}</span>}
+                    </div>
+                  </div>
+                  {!isCutDepthThrough && (
+                    <input type="range" min="0.1" max="5" step="0.1" value={cutDepth} onChange={e => setCutDepth(Number(e.target.value))} className="w-full" />
+                  )}
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-xs">Attachment Trim Cut Depth (mm)</span>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input type="checkbox" checked={isAttachmentTrimCutDepthHalf} onChange={e => setIsAttachmentTrimCutDepthHalf(e.target.checked)} />
+                        Half
+                      </label>
+                      {!isAttachmentTrimCutDepthHalf && <span className="text-gray-600 font-bold text-xs w-6 text-right">{attachmentTrimCutDepth}</span>}
+                    </div>
+                  </div>
+                  {!isAttachmentTrimCutDepthHalf && (
+                    <input type="range" min="0.1" max="5" step="0.1" value={attachmentTrimCutDepth} onChange={e => setAttachmentTrimCutDepth(Number(e.target.value))} className="w-full" />
+                  )}
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Attachment Trim Router Bit Dia (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{attachmentTrimRouterBitDiameter}</span>
+                  </div>
+                  <input type="range" min="1" max="10" step="0.5" value={attachmentTrimRouterBitDiameter} onChange={e => setAttachmentTrimRouterBitDiameter(Number(e.target.value))} className="w-full" />
+                </label>
         </section>
       </div>
 
@@ -424,6 +411,57 @@ export default function App() {
           </div>
         </section>
       </div>
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto mt-8">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Settings className="text-blue-600" /> Backend Parameters Dashboard</h2>
+              <p className="text-gray-500 mb-8">These parameters will be managed by the backend in the future. Adjust them here to preview their effects on the generated DXF files.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="flex flex-col gap-6">
+                  <label className="flex flex-col gap-2">
+                    <div className="flex justify-between items-end">
+                      <span className="font-semibold text-base">Glass Offset</span>
+                      <span className="text-blue-600 font-bold text-lg">{glassOffset} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                    </div>
+                    <input type="range" min="0" max="20" step="0.5" value={glassOffset} onChange={e => setGlassOffset(Number(e.target.value))} className="w-full accent-blue-600" />
+                    <p className="text-xs text-gray-500">Distance from the outer perimeter to the glass cut.</p>
+                  </label>
+
+                  <label className="flex flex-col gap-2">
+                    <div className="flex justify-between items-end">
+                      <span className="font-semibold text-base">Backing Offset</span>
+                      <span className="text-blue-600 font-bold text-lg">{backingOffset} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                    </div>
+                    <input type="range" min="0" max="20" step="0.5" value={backingOffset} onChange={e => setBackingOffset(Number(e.target.value))} className="w-full accent-blue-600" />
+                    <p className="text-xs text-gray-500">Distance from the outer perimeter to the backing cut.</p>
+                  </label>
+                </div>
+
+                <div className="flex flex-col gap-6">
+                  <label className="flex flex-col gap-2">
+                    <div className="flex justify-between items-end">
+                      <span className="font-semibold text-base">Chamfer Length</span>
+                      <span className="text-blue-600 font-bold text-lg">{chamferLength} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                    </div>
+                    <input type="range" min="0" max="20" step="0.5" value={chamferLength} onChange={e => setChamferLength(Number(e.target.value))} className="w-full accent-blue-600" />
+                    <p className="text-xs text-gray-500">Length of the chamfer applied to sharp corners.</p>
+                  </label>
+
+                  <div className="flex flex-col gap-2 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex justify-between items-end">
+                      <span className="font-semibold text-base">Fillet Radius</span>
+                      <span className="text-gray-600 font-bold text-lg">{filletRadius} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                    </div>
+                    <p className="text-xs text-gray-500">Calculated automatically as half of the Glass Router Bit Diameter.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
