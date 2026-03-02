@@ -22,6 +22,7 @@ export default function App() {
   const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
   const [showVinylMapping, setShowVinylMapping] = useState(false);
   const [glassOffset, setGlassOffset] = useState<number>(2);
+  const [backingOffset, setBackingOffset] = useState<number>(2);
   const [chamferLength, setChamferLength] = useState<number>(20);
   const [filletRadius, setFilletRadius] = useState<number>(20);
   const [glassRouterBitDiameter, setGlassRouterBitDiameter] = useState<number>(3);
@@ -36,6 +37,7 @@ export default function App() {
   useEffect(() => {
     const config = {
       glassOffset,
+      backingOffset,
       chamferLength,
       filletRadius,
       tolerances: DEFAULT_TOLERANCES
@@ -50,7 +52,7 @@ export default function App() {
     ];
 
     setReport({ results, pipelineResult });
-  }, [borders, glassOffset, chamferLength, filletRadius]);
+  }, [borders, glassOffset, backingOffset, chamferLength, filletRadius]);
 
   const handleBordersLoaded = (newBorders: Border[]) => {
     setBorders(prev => isImported ? [...prev, ...newBorders] : newBorders);
@@ -164,6 +166,14 @@ export default function App() {
               <span className="text-blue-600 font-bold">{glassOffset}</span>
             </div>
             <input type="range" min="0" max="20" step="0.5" value={glassOffset} onChange={e => setGlassOffset(Number(e.target.value))} className="w-full" />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between">
+              <span className="font-semibold">Backing Offset (mm)</span>
+              <span className="text-blue-600 font-bold">{backingOffset}</span>
+            </div>
+            <input type="range" min="0" max="20" step="0.5" value={backingOffset} onChange={e => setBackingOffset(Number(e.target.value))} className="w-full" />
           </label>
 
           <label className="flex flex-col gap-1">

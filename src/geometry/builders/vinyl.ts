@@ -28,7 +28,8 @@ function applyFillets(poly: PolygonApprox, traces: CornerTrace[], radius: number
       const u2 = { x: v2.x / len2, y: v2.y / len2 };
 
       const angleRad = trace.interiorAngleDeg * Math.PI / 180;
-      let d = radius / Math.tan(angleRad / 2);
+      // Use absolute value of tan to handle reflex angles correctly
+      let d = radius / Math.abs(Math.tan(angleRad / 2));
       
       // Clamp d to half the shortest edge
       const maxD = Math.min(len1, len2) / 2;

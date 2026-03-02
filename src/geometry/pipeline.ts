@@ -8,6 +8,7 @@ import { decodeSVGPath } from './decode';
 
 export interface PipelineConfig {
   glassOffset: number;
+  backingOffset: number;
   chamferLength: number;
   filletRadius: number;
   tolerances: Tolerances;
@@ -45,7 +46,7 @@ export function runPipeline(borders: Border[], config: PipelineConfig): Pipeline
   });
   
   const backingElements = elements.map(el => {
-    const res = buildBacking(el, config.glassOffset, config.chamferLength, config.tolerances, diagnostics);
+    const res = buildBacking(el, config.backingOffset, config.chamferLength, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
     return res.element;
   });
