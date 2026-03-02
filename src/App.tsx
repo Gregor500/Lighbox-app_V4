@@ -222,6 +222,15 @@ export default function App() {
 
           <h3 className="font-bold mt-4 border-b border-gray-200 pb-1 text-green-800">Frontend (Manufacturing)</h3>
           
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold text-xs">Work Area</span>
+            <select value={workArea} onChange={e => setWorkArea(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
+              <option value="default">Default (As-is)</option>
+              <option value="2500x1250">2500 x 1250 mm</option>
+              <option value="3000x1500">3000 x 1500 mm</option>
+            </select>
+          </label>
+
           <div className="flex gap-2">
             <label className="flex flex-col gap-1 flex-1">
               <span className="font-semibold text-xs">Thickness</span>
@@ -299,15 +308,6 @@ export default function App() {
               <span className="text-gray-600 font-bold text-xs">{attachmentTrimRouterBitDiameter}</span>
             </div>
             <input type="range" min="1" max="10" step="0.5" value={attachmentTrimRouterBitDiameter} onChange={e => setAttachmentTrimRouterBitDiameter(Number(e.target.value))} className="w-full" />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="font-semibold text-xs">Work Area</span>
-            <select value={workArea} onChange={e => setWorkArea(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
-              <option value="default">Default (As-is)</option>
-              <option value="2500x1250">2500 x 1250 mm</option>
-              <option value="3000x1500">3000 x 1500 mm</option>
-            </select>
           </label>
         </section>
       </div>
