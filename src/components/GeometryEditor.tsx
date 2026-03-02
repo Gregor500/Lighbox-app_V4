@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Border, Point2 } from '../geometry/types';
+import { Border, Point2, DEFAULT_TOLERANCES } from '../geometry/types';
+import { polygonsIntersect, polygonContainsPolygon } from '../geometry/math';
 
 interface GeometryEditorProps {
   borders: Border[];
   onChange?: (borders: Border[]) => void;
   readonly?: boolean;
   title?: string;
+  workArea?: { width: number; height: number } | null;
 }
 
-export function GeometryEditor({ borders, onChange, readonly, title }: GeometryEditorProps) {
+export function GeometryEditor({ borders, onChange, readonly, title, workArea }: GeometryEditorProps) {
   const [dragging, setDragging] = useState<{ borderId: string; pointIndex: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -23,11 +25,23 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
     });
   });
 
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
   // Add padding
-  const padding = 50;
+  let padding = 50;
   if (minX === Infinity) {
     minX = 0; minY = 0; maxX = 300; maxY = 150;
   }
+
+  if (workArea) {
+    minX = Math.min(minX, cx - workArea.width / 2);
+    minY = Math.min(minY, cy - workArea.height / 2);
+    maxX = Math.max(maxX, cx + workArea.width / 2);
+    maxY = Math.max(maxY, cy + workArea.height / 2);
+    padding = 100; // Add more padding if work area is shown
+  }
+
   const viewBox = `${minX - padding} ${minY - padding} ${maxX - minX + padding * 2} ${maxY - minY + padding * 2}`;
 
   const getMouseCoords = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -75,6 +89,44 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
         }
         return b;
       });
+
+      // Validate the move
+      const draggedBorder = newBorders.find(b => b.id === dragging.borderId);
+      if (draggedBorder) {
+        let isValid = true;
+        
+        // Check intersections with other borders
+        for (const other of newBorders) {
+          if (other.id === draggedBorder.id) continue;
+          
+          if (polygonsIntersect(draggedBorder.polygon, other.polygon)) {
+            isValid = false;
+            break;
+          }
+        }
+
+        // Check containment
+        if (isValid) {
+          const perimeter = newBorders.find(b => b.role === 'perimeter');
+          if (perimeter) {
+            if (draggedBorder.role === 'hole') {
+              if (!polygonContainsPolygon(perimeter.polygon, draggedBorder.polygon, DEFAULT_TOLERANCES)) {
+                isValid = false;
+              }
+            } else if (draggedBorder.role === 'perimeter') {
+              for (const hole of newBorders.filter(b => b.role === 'hole')) {
+                if (!polygonContainsPolygon(draggedBorder.polygon, hole.polygon, DEFAULT_TOLERANCES)) {
+                  isValid = false;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (!isValid) return; // Ignore the move if it causes an intersection or containment violation
+      }
+
       if (onChange) onChange(newBorders);
     };
 
@@ -112,6 +164,20 @@ export function GeometryEditor({ borders, onChange, readonly, title }: GeometryE
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
         
+        {workArea && (
+          <rect 
+            x={cx - workArea.width / 2} 
+            y={cy - workArea.height / 2} 
+            width={workArea.width} 
+            height={workArea.height} 
+            fill="none" 
+            stroke="#9ca3af" 
+            strokeWidth="2" 
+            strokeDasharray="10,10"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+
         {/* Fill path for all borders using evenodd to cut out holes */}
         <path
           d={borders.filter(b => !b.id.endsWith('_orig')).map(border => {

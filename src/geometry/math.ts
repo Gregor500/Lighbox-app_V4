@@ -48,6 +48,30 @@ export function isPointInPolygon(pt: Point2, poly: PolygonApprox, tol: Tolerance
   return inside;
 }
 
+export function segmentsIntersect(p1: Point2, p2: Point2, p3: Point2, p4: Point2): boolean {
+  const ccw = (A: Point2, B: Point2, C: Point2) => {
+    return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+  };
+  return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+}
+
+export function polygonsIntersect(poly1: PolygonApprox, poly2: PolygonApprox): boolean {
+  const pts1 = poly1.points;
+  const pts2 = poly2.points;
+  for (let i = 0; i < pts1.length; i++) {
+    const p1 = pts1[i];
+    const p2 = pts1[(i + 1) % pts1.length];
+    for (let j = 0; j < pts2.length; j++) {
+      const p3 = pts2[j];
+      const p4 = pts2[(j + 1) % pts2.length];
+      if (segmentsIntersect(p1, p2, p3, p4)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function polygonContainsPolygon(outer: PolygonApprox, inner: PolygonApprox, tol: Tolerances): boolean {
   // A simple check: if all points of inner are inside outer, it's contained.
   // In a robust engine, we'd also check edge intersections.

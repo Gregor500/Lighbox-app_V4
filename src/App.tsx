@@ -344,7 +344,7 @@ export default function App() {
           
           {!showVinylMapping ? (
             <DxfDropzone onBordersLoaded={handleBordersLoaded}>
-              <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" />
+              <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" workArea={getWorkAreaDimensions()} />
             </DxfDropzone>
           ) : (
             <VinylColorMapping 
