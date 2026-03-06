@@ -3,6 +3,8 @@ import { runValidationSuite, FullReport } from './geometry/validation';
 import { GeometryEditor } from './components/GeometryEditor';
 import { DxfDropzone } from './components/DxfDropzone';
 import { VinylColorMapping } from './components/VinylColorMapping';
+import { FrameEditor } from './components/FrameEditor';
+import { FrameLine } from './geometry/frame';
 import { Border, DEFAULT_TOLERANCES, Element, Point2 } from './geometry/types';
 import { getSampleBorders } from './geometry/sample';
 import { runPipeline } from './geometry/pipeline';
@@ -20,22 +22,30 @@ export default function App() {
   const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
   const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
-  const [showVinylMapping, setShowVinylMapping] = useState(false);
+  const [viewMode, setViewMode] = useState<'auto' | 'custom' | 'frame'>('auto');
   const [currentView, setCurrentView] = useState<'p6' | 'backend'>('p6');
   
+  // Frame state
+  const [frameLines, setFrameLines] = useState<FrameLine[]>([]);
+  const [frameMaterialThickness, setFrameMaterialThickness] = useState<number>(20);
+  const [frameHoleSpacing, setFrameHoleSpacing] = useState<number>(100);
+  const [frameHoleDiameter, setFrameHoleDiameter] = useState<number>(5);
+
   // Backend in the future
-  const [glassOffset, setGlassOffset] = useState<number>(2);
-  const [backingOffset, setBackingOffset] = useState<number>(2);
-  const [chamferLength, setChamferLength] = useState<number>(20);
+  const [profiles, setProfiles] = useState<Record<string, { glassOffset: number, backingOffset: number, chamferLength: number }>>({
+    'P6': { glassOffset: 2, backingOffset: 2, chamferLength: 20 },
+    'P8': { glassOffset: 3, backingOffset: 3, chamferLength: 25 },
+  });
+  const [activeProfile, setActiveProfile] = useState<string>('P6');
 
   // Frontend
   const [glassRouterBitDiameter, setGlassRouterBitDiameter] = useState<number>(3);
   const [backingRouterBitDiameter, setBackingRouterBitDiameter] = useState<number>(3);
   const [materialThickness, setMaterialThickness] = useState<number>(4);
   const [cutDepth, setCutDepth] = useState<number>(0.2);
-  const [isCutDepthThrough, setIsCutDepthThrough] = useState<boolean>(false);
+  const [isCutDepthThrough, setIsCutDepthThrough] = useState<boolean>(true);
   const [attachmentTrimCutDepth, setAttachmentTrimCutDepth] = useState<number>(0.5);
-  const [isAttachmentTrimCutDepthHalf, setIsAttachmentTrimCutDepthHalf] = useState<boolean>(false);
+  const [isAttachmentTrimCutDepthHalf, setIsAttachmentTrimCutDepthHalf] = useState<boolean>(true);
   const [attachmentTrimRouterBitDiameter, setAttachmentTrimRouterBitDiameter] = useState<number>(3);
   const [glassType, setGlassType] = useState<string>('Opal');
   const [materialColor, setMaterialColor] = useState<string>('White');
@@ -48,11 +58,15 @@ export default function App() {
 
   useEffect(() => {
     const config = {
-      glassOffset,
-      backingOffset,
-      chamferLength,
+      glassOffset: profiles[activeProfile].glassOffset,
+      backingOffset: profiles[activeProfile].backingOffset,
+      chamferLength: profiles[activeProfile].chamferLength,
       filletRadius,
-      tolerances: DEFAULT_TOLERANCES
+      tolerances: DEFAULT_TOLERANCES,
+      frameLines,
+      frameMaterialThickness,
+      frameHoleSpacing,
+      frameHoleDiameter
     };
     const pipelineResult = runPipeline(borders, config);
     
@@ -64,7 +78,7 @@ export default function App() {
     ];
 
     setReport({ results, pipelineResult });
-  }, [borders, glassOffset, backingOffset, chamferLength, filletRadius]);
+  }, [borders, profiles, activeProfile, filletRadius, frameLines, frameMaterialThickness, frameHoleSpacing, frameHoleDiameter]);
 
   const handleBordersLoaded = (newBorders: Border[]) => {
     setBorders(prev => isImported ? [...prev, ...newBorders] : newBorders);
@@ -126,7 +140,10 @@ export default function App() {
       attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
       attachmentTrimRouterBitDiameter,
       sideDepth: type === 'kulg' ? sideDepth : undefined,
-      sideThickness: type === 'kulg' ? sideThickness : undefined
+      sideThickness: type === 'kulg' ? sideThickness : undefined,
+      frameMaterialThickness,
+      frameHoleSpacing,
+      frameHoleDiameter
     });
     const blob = new Blob([dxfStr], { type: 'application/dxf' });
     saveAs(blob, `${type}_export.dxf`);
@@ -155,7 +172,10 @@ export default function App() {
         attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
         attachmentTrimRouterBitDiameter,
         sideDepth: type === 'kulg' ? sideDepth : undefined,
-        sideThickness: type === 'kulg' ? sideThickness : undefined
+        sideThickness: type === 'kulg' ? sideThickness : undefined,
+        frameMaterialThickness,
+        frameHoleSpacing,
+        frameHoleDiameter
       });
       zip.file(`${type}_export.dxf`, dxfStr);
     });
@@ -188,7 +208,18 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col font-mono text-sm text-gray-800">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight">P6</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">Lightbox Engine</h1>
+          <select 
+            value={activeProfile} 
+            onChange={e => setActiveProfile(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-1.5 font-bold text-blue-700 bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {Object.keys(profiles).map(profile => (
+              <option key={profile} value={profile}>{profile} Profile</option>
+            ))}
+          </select>
+        </div>
         <nav className="flex gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
           <button 
             onClick={() => setCurrentView('p6')} 
@@ -220,7 +251,7 @@ export default function App() {
                 <label className="flex flex-col gap-1">
                   <span className="font-semibold text-xs">Work Area</span>
                   <select value={workArea} onChange={e => setWorkArea(e.target.value)} className="border border-gray-300 p-1 rounded text-xs bg-white">
-                    <option value="default">Default (As-is)</option>
+                    <option value="default">Default (none)</option>
                     <option value="2500x1250">2500 x 1250 mm</option>
                     <option value="3000x1500">3000 x 1500 mm</option>
                   </select>
@@ -320,8 +351,34 @@ export default function App() {
                   </div>
                   <input type="range" min="1" max="10" step="0.5" value={attachmentTrimRouterBitDiameter} onChange={e => setAttachmentTrimRouterBitDiameter(Number(e.target.value))} className="w-full" />
                 </label>
-        </section>
-      </div>
+
+                <h3 className="font-bold mt-2 border-b border-gray-200 pb-1 text-blue-800">Frame Settings</h3>
+                
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Material Thickness (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{frameMaterialThickness}</span>
+                  </div>
+                  <input type="range" min="5" max="50" step="1" value={frameMaterialThickness} onChange={e => setFrameMaterialThickness(Number(e.target.value))} className="w-full" />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Hole Spacing (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{frameHoleSpacing}</span>
+                  </div>
+                  <input type="range" min="20" max="300" step="5" value={frameHoleSpacing} onChange={e => setFrameHoleSpacing(Number(e.target.value))} className="w-full" />
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-xs">Hole Diameter (mm)</span>
+                    <span className="text-gray-600 font-bold text-xs">{frameHoleDiameter}</span>
+                  </div>
+                  <input type="range" min="1" max="20" step="0.5" value={frameHoleDiameter} onChange={e => setFrameHoleDiameter(Number(e.target.value))} className="w-full" />
+                </label>
+              </section>
+            </div>
 
       {/* Main Content */}
       <div className="flex-grow flex flex-col gap-8 min-w-0">
@@ -332,16 +389,22 @@ export default function App() {
               {isImported && borders.length > 0 && (
                 <div className="flex bg-gray-100 p-1 rounded-lg mb-1">
                   <button
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${!showVinylMapping ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
-                    onClick={() => setShowVinylMapping(false)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'auto' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setViewMode('auto')}
                   >
                     Auto (Source)
                   </button>
                   <button
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${showVinylMapping ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
-                    onClick={() => setShowVinylMapping(true)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'custom' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setViewMode('custom')}
                   >
                     Custom (Mapping)
+                  </button>
+                  <button
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'frame' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setViewMode('frame')}
+                  >
+                    Frame (Centerlines)
                   </button>
                 </div>
               )}
@@ -353,15 +416,26 @@ export default function App() {
             )}
           </div>
           
-          {!showVinylMapping ? (
+          {viewMode === 'auto' && (
             <DxfDropzone onBordersLoaded={handleBordersLoaded}>
               <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" workArea={getWorkAreaDimensions()} />
             </DxfDropzone>
-          ) : (
+          )}
+          {viewMode === 'custom' && (
             <VinylColorMapping 
               borders={borders} 
               onBordersChange={setBorders} 
               onVinylRegionsChange={setVinylRegions} 
+            />
+          )}
+          {viewMode === 'frame' && (
+            <FrameEditor 
+              borders={borders} 
+              frameLines={frameLines} 
+              onFrameLinesChange={setFrameLines} 
+              materialThickness={frameMaterialThickness}
+              holeSpacing={frameHoleSpacing}
+              holeDiameter={frameHoleDiameter}
             />
           )}
 
@@ -415,26 +489,36 @@ export default function App() {
         ) : (
           <div className="max-w-3xl mx-auto mt-8">
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Settings className="text-blue-600" /> Backend Parameters Dashboard</h2>
-              <p className="text-gray-500 mb-8">These parameters will be managed by the backend in the future. Adjust them here to preview their effects on the generated DXF files.</p>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Settings className="text-blue-600" /> {activeProfile} Backend Parameters</h2>
+              <p className="text-gray-500 mb-8">These parameters will be managed by the backend in the future. Adjust them here to preview their effects on the generated DXF files for the <strong>{activeProfile}</strong> profile.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="flex flex-col gap-6">
                   <label className="flex flex-col gap-2">
                     <div className="flex justify-between items-end">
                       <span className="font-semibold text-base">Glass Offset</span>
-                      <span className="text-blue-600 font-bold text-lg">{glassOffset} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                      <span className="text-blue-600 font-bold text-lg">{profiles[activeProfile].glassOffset} <span className="text-sm text-gray-500 font-normal">mm</span></span>
                     </div>
-                    <input type="range" min="0" max="20" step="0.5" value={glassOffset} onChange={e => setGlassOffset(Number(e.target.value))} className="w-full accent-blue-600" />
+                    <input 
+                      type="range" min="0" max="20" step="0.5" 
+                      value={profiles[activeProfile].glassOffset} 
+                      onChange={e => setProfiles(prev => ({ ...prev, [activeProfile]: { ...prev[activeProfile], glassOffset: Number(e.target.value) } }))} 
+                      className="w-full accent-blue-600" 
+                    />
                     <p className="text-xs text-gray-500">Distance from the outer perimeter to the glass cut.</p>
                   </label>
 
                   <label className="flex flex-col gap-2">
                     <div className="flex justify-between items-end">
                       <span className="font-semibold text-base">Backing Offset</span>
-                      <span className="text-blue-600 font-bold text-lg">{backingOffset} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                      <span className="text-blue-600 font-bold text-lg">{profiles[activeProfile].backingOffset} <span className="text-sm text-gray-500 font-normal">mm</span></span>
                     </div>
-                    <input type="range" min="0" max="20" step="0.5" value={backingOffset} onChange={e => setBackingOffset(Number(e.target.value))} className="w-full accent-blue-600" />
+                    <input 
+                      type="range" min="0" max="20" step="0.5" 
+                      value={profiles[activeProfile].backingOffset} 
+                      onChange={e => setProfiles(prev => ({ ...prev, [activeProfile]: { ...prev[activeProfile], backingOffset: Number(e.target.value) } }))} 
+                      className="w-full accent-blue-600" 
+                    />
                     <p className="text-xs text-gray-500">Distance from the outer perimeter to the backing cut.</p>
                   </label>
                 </div>
@@ -443,9 +527,14 @@ export default function App() {
                   <label className="flex flex-col gap-2">
                     <div className="flex justify-between items-end">
                       <span className="font-semibold text-base">Chamfer Length</span>
-                      <span className="text-blue-600 font-bold text-lg">{chamferLength} <span className="text-sm text-gray-500 font-normal">mm</span></span>
+                      <span className="text-blue-600 font-bold text-lg">{profiles[activeProfile].chamferLength} <span className="text-sm text-gray-500 font-normal">mm</span></span>
                     </div>
-                    <input type="range" min="0" max="20" step="0.5" value={chamferLength} onChange={e => setChamferLength(Number(e.target.value))} className="w-full accent-blue-600" />
+                    <input 
+                      type="range" min="0" max="20" step="0.5" 
+                      value={profiles[activeProfile].chamferLength} 
+                      onChange={e => setProfiles(prev => ({ ...prev, [activeProfile]: { ...prev[activeProfile], chamferLength: Number(e.target.value) } }))} 
+                      className="w-full accent-blue-600" 
+                    />
                     <p className="text-xs text-gray-500">Length of the chamfer applied to sharp corners.</p>
                   </label>
 
