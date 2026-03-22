@@ -1,9 +1,6 @@
 import { Element, Diagnostic, Tolerances, CornerTrace, PolygonApprox, Point2 } from '../types';
 import { offsetPolygon, getUsableMaterial } from '../offset';
 import { analyzeCorners } from '../corners';
-import { PipelineConfig } from '../pipeline';
-import { calculateHolesForLine } from '../frame';
-import { isPointInPolygon } from '../math';
 
 function applyChamfers(poly: PolygonApprox, role: 'perimeter' | 'hole', chamferLength: number, tol: Tolerances): PolygonApprox {
   if (chamferLength <= 0) return poly;
@@ -63,8 +60,7 @@ function applyChamfers(poly: PolygonApprox, role: 'perimeter' | 'hole', chamferL
   return { points: newPts };
 }
 
-export function buildBacking(element: Element, config: PipelineConfig, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
-  const { backingOffset, chamferLength, tolerances: tol, frameLines, frameMaterialThickness, frameHoleSpacing, frameHoleDiameter } = config;
+export function buildBacking(element: Element, glassOffset: number, chamferLength: number, tol: Tolerances, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
   const traces: CornerTrace[] = [];
   
   // Analyze corners
@@ -73,11 +69,11 @@ export function buildBacking(element: Element, config: PipelineConfig, diagnosti
     traces.push(...analyzeCorners(hole, tol, 'backing'));
   });
   
-  // Perimeter offset inward by backingOffset
-  const perimeterOffset = offsetPolygon(element.perimeter.polygon, -backingOffset);
+  // Perimeter offset inward by glass_offset
+  const perimeterOffset = offsetPolygon(element.perimeter.polygon, -glassOffset);
   
-  // Hole offset outward by backingOffset (positive value expands the hole into the usable shape)
-  const holesOffset = element.holes.map(hole => offsetPolygon(hole.polygon, backingOffset));
+  // Hole offset outward by glass_offset (positive value expands the hole into the usable shape)
+  const holesOffset = element.holes.map(hole => offsetPolygon(hole.polygon, glassOffset));
 
   if (perimeterOffset.length === 0) {
     diagnostics.push({
@@ -120,57 +116,9 @@ export function buildBacking(element: Element, config: PipelineConfig, diagnosti
     };
   });
 
-  // Calculate frame holes and add them to the backing holes
-  if (frameLines && frameMaterialThickness && frameHoleSpacing && frameHoleDiameter) {
-    const radius = frameHoleDiameter / 2;
-    // Simple circle approximation for holes (e.g., 16 segments)
-    const numSegments = 16;
-    
-    frameLines.forEach((line, lineIdx) => {
-      const holes = calculateHolesForLine(line, frameMaterialThickness, frameHoleSpacing);
-      holes.forEach((center, holeIdx) => {
-        // Check if hole is inside the usable material
-        const isInsidePerimeter = isPointInPolygon(center, material.perimeter, tol);
-        const isInsideAnyHole = material.holes.some(h => isPointInPolygon(center, h, tol));
-        
-        if (!isInsidePerimeter || isInsideAnyHole) {
-          return; // Skip this hole
-        }
-
-        const points: Point2[] = [];
-        for (let i = 0; i < numSegments; i++) {
-          const angle = (i / numSegments) * Math.PI * 2;
-          points.push({
-            x: center.x + Math.cos(angle) * radius,
-            y: center.y + Math.sin(angle) * radius
-          });
-        }
-        
-        backedHoles.push({
-          id: `${element.id}_frame_hole_${lineIdx}_${holeIdx}`,
-          loop: { segments: [] }, // We don't have segments for this generated hole
-          polygon: { points },
-          role: 'hole',
-          depth: element.perimeter.depth + 1,
-          parentId: element.perimeter.id
-        });
-      });
-    });
-  }
-
   // Marker policy (down-arrow)
   // Determine anchor point inside perimeter, outside holes
-  let cx = 0, cy = 0;
-  const pts = backedPerimeter.polygon.points;
-  if (pts.length > 0) {
-    for (const p of pts) {
-      cx += p.x;
-      cy += p.y;
-    }
-    cx /= pts.length;
-    cy /= pts.length;
-  }
-  const anchor = pts.length > 0 ? { x: cx, y: cy } : null;
+  const anchor = backedPerimeter.polygon.points[0]; // Simplified anchor selection
 
   if (!anchor) {
     diagnostics.push({
@@ -180,27 +128,6 @@ export function buildBacking(element: Element, config: PipelineConfig, diagnosti
       borderId: element.perimeter.id,
       actionStage: 'backing_build',
       repairApplied: false
-    });
-  } else {
-    // Add down arrow marker (pointing towards positive Y)
-    const arrowSize = 10;
-    const arrowPoints: Point2[] = [
-      { x: anchor.x, y: anchor.y + arrowSize }, // tip
-      { x: anchor.x + arrowSize / 2, y: anchor.y }, // right corner
-      { x: anchor.x + arrowSize / 4, y: anchor.y }, // right inner
-      { x: anchor.x + arrowSize / 4, y: anchor.y - arrowSize }, // right top
-      { x: anchor.x - arrowSize / 4, y: anchor.y - arrowSize }, // left top
-      { x: anchor.x - arrowSize / 4, y: anchor.y }, // left inner
-      { x: anchor.x - arrowSize / 2, y: anchor.y } // left corner
-    ];
-
-    backedHoles.push({
-      id: `${element.id}_marker_arrow`,
-      loop: { segments: [] },
-      polygon: { points: arrowPoints },
-      role: 'hole',
-      depth: element.perimeter.depth + 1,
-      parentId: element.perimeter.id
     });
   }
 

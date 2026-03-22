@@ -3,8 +3,6 @@ import { runValidationSuite, FullReport } from './geometry/validation';
 import { GeometryEditor } from './components/GeometryEditor';
 import { DxfDropzone } from './components/DxfDropzone';
 import { VinylColorMapping } from './components/VinylColorMapping';
-import { FrameEditor } from './components/FrameEditor';
-import { FrameLine } from './geometry/frame';
 import { Border, DEFAULT_TOLERANCES, Element, Point2 } from './geometry/types';
 import { getSampleBorders } from './geometry/sample';
 import { runPipeline } from './geometry/pipeline';
@@ -22,15 +20,9 @@ export default function App() {
   const [isImported, setIsImported] = useState(false);
   const [report, setReport] = useState<FullReport | null>(null);
   const [vinylRegions, setVinylRegions] = useState<{ color: string; elements: Element[] }[]>([]);
-  const [viewMode, setViewMode] = useState<'auto' | 'custom' | 'frame'>('auto');
+  const [showVinylMapping, setShowVinylMapping] = useState(false);
   const [currentView, setCurrentView] = useState<'p6' | 'backend'>('p6');
   
-  // Frame state
-  const [frameLines, setFrameLines] = useState<FrameLine[]>([]);
-  const [frameMaterialThickness, setFrameMaterialThickness] = useState<number>(20);
-  const [frameHoleSpacing, setFrameHoleSpacing] = useState<number>(100);
-  const [frameHoleDiameter, setFrameHoleDiameter] = useState<number>(5);
-
   // Backend in the future
   const [profiles, setProfiles] = useState<Record<string, { glassOffset: number, backingOffset: number, chamferLength: number }>>({
     'P6': { glassOffset: 2, backingOffset: 2, chamferLength: 20 },
@@ -62,11 +54,7 @@ export default function App() {
       backingOffset: profiles[activeProfile].backingOffset,
       chamferLength: profiles[activeProfile].chamferLength,
       filletRadius,
-      tolerances: DEFAULT_TOLERANCES,
-      frameLines,
-      frameMaterialThickness,
-      frameHoleSpacing,
-      frameHoleDiameter
+      tolerances: DEFAULT_TOLERANCES
     };
     const pipelineResult = runPipeline(borders, config);
     
@@ -78,7 +66,7 @@ export default function App() {
     ];
 
     setReport({ results, pipelineResult });
-  }, [borders, profiles, activeProfile, filletRadius, frameLines, frameMaterialThickness, frameHoleSpacing, frameHoleDiameter]);
+  }, [borders, profiles, activeProfile, filletRadius]);
 
   const handleBordersLoaded = (newBorders: Border[]) => {
     setBorders(prev => isImported ? [...prev, ...newBorders] : newBorders);
@@ -140,10 +128,7 @@ export default function App() {
       attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
       attachmentTrimRouterBitDiameter,
       sideDepth: type === 'kulg' ? sideDepth : undefined,
-      sideThickness: type === 'kulg' ? sideThickness : undefined,
-      frameMaterialThickness,
-      frameHoleSpacing,
-      frameHoleDiameter
+      sideThickness: type === 'kulg' ? sideThickness : undefined
     });
     const blob = new Blob([dxfStr], { type: 'application/dxf' });
     saveAs(blob, `${type}_export.dxf`);
@@ -172,10 +157,7 @@ export default function App() {
         attachmentTrimCutDepth: isAttachmentTrimCutDepthHalf ? 'Half' : attachmentTrimCutDepth,
         attachmentTrimRouterBitDiameter,
         sideDepth: type === 'kulg' ? sideDepth : undefined,
-        sideThickness: type === 'kulg' ? sideThickness : undefined,
-        frameMaterialThickness,
-        frameHoleSpacing,
-        frameHoleDiameter
+        sideThickness: type === 'kulg' ? sideThickness : undefined
       });
       zip.file(`${type}_export.dxf`, dxfStr);
     });
@@ -351,34 +333,8 @@ export default function App() {
                   </div>
                   <input type="range" min="1" max="10" step="0.5" value={attachmentTrimRouterBitDiameter} onChange={e => setAttachmentTrimRouterBitDiameter(Number(e.target.value))} className="w-full" />
                 </label>
-
-                <h3 className="font-bold mt-2 border-b border-gray-200 pb-1 text-blue-800">Frame Settings</h3>
-                
-                <label className="flex flex-col gap-1">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-xs">Material Thickness (mm)</span>
-                    <span className="text-gray-600 font-bold text-xs">{frameMaterialThickness}</span>
-                  </div>
-                  <input type="range" min="5" max="50" step="1" value={frameMaterialThickness} onChange={e => setFrameMaterialThickness(Number(e.target.value))} className="w-full" />
-                </label>
-
-                <label className="flex flex-col gap-1">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-xs">Hole Spacing (mm)</span>
-                    <span className="text-gray-600 font-bold text-xs">{frameHoleSpacing}</span>
-                  </div>
-                  <input type="range" min="20" max="300" step="5" value={frameHoleSpacing} onChange={e => setFrameHoleSpacing(Number(e.target.value))} className="w-full" />
-                </label>
-
-                <label className="flex flex-col gap-1">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-xs">Hole Diameter (mm)</span>
-                    <span className="text-gray-600 font-bold text-xs">{frameHoleDiameter}</span>
-                  </div>
-                  <input type="range" min="1" max="20" step="0.5" value={frameHoleDiameter} onChange={e => setFrameHoleDiameter(Number(e.target.value))} className="w-full" />
-                </label>
-              </section>
-            </div>
+        </section>
+      </div>
 
       {/* Main Content */}
       <div className="flex-grow flex flex-col gap-8 min-w-0">
@@ -389,22 +345,16 @@ export default function App() {
               {isImported && borders.length > 0 && (
                 <div className="flex bg-gray-100 p-1 rounded-lg mb-1">
                   <button
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'auto' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
-                    onClick={() => setViewMode('auto')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${!showVinylMapping ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setShowVinylMapping(false)}
                   >
                     Auto (Source)
                   </button>
                   <button
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'custom' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
-                    onClick={() => setViewMode('custom')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${showVinylMapping ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
+                    onClick={() => setShowVinylMapping(true)}
                   >
                     Custom (Mapping)
-                  </button>
-                  <button
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${viewMode === 'frame' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
-                    onClick={() => setViewMode('frame')}
-                  >
-                    Frame (Centerlines)
                   </button>
                 </div>
               )}
@@ -416,26 +366,15 @@ export default function App() {
             )}
           </div>
           
-          {viewMode === 'auto' && (
+          {!showVinylMapping ? (
             <DxfDropzone onBordersLoaded={handleBordersLoaded}>
               <GeometryEditor borders={borders} onChange={setBorders} readonly={isImported} title="Interactive Source Geometry" workArea={getWorkAreaDimensions()} />
             </DxfDropzone>
-          )}
-          {viewMode === 'custom' && (
+          ) : (
             <VinylColorMapping 
               borders={borders} 
               onBordersChange={setBorders} 
               onVinylRegionsChange={setVinylRegions} 
-            />
-          )}
-          {viewMode === 'frame' && (
-            <FrameEditor 
-              borders={borders} 
-              frameLines={frameLines} 
-              onFrameLinesChange={setFrameLines} 
-              materialThickness={frameMaterialThickness}
-              holeSpacing={frameHoleSpacing}
-              holeDiameter={frameHoleDiameter}
             />
           )}
 

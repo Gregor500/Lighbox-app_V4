@@ -20,9 +20,6 @@ export interface ExportParams {
   attachmentTrimRouterBitDiameter?: number;
   sideDepth?: number;
   sideThickness?: number;
-  frameMaterialThickness?: number;
-  frameHoleSpacing?: number;
-  frameHoleDiameter?: number;
 }
 
 export function exportToDXF(elements: Element[], params?: ExportParams): string {
@@ -86,15 +83,6 @@ export function exportToDXF(elements: Element[], params?: ExportParams): string 
     }
     if (params.sideThickness !== undefined) {
       textLines.push(`Side Thickness: ${params.sideThickness}mm`);
-    }
-    if (params.frameMaterialThickness !== undefined) {
-      textLines.push(`Frame Material Thickness: ${params.frameMaterialThickness}mm`);
-    }
-    if (params.frameHoleSpacing !== undefined) {
-      textLines.push(`Frame Hole Spacing: ${params.frameHoleSpacing}mm`);
-    }
-    if (params.frameHoleDiameter !== undefined) {
-      textLines.push(`Frame Hole Diameter: ${params.frameHoleDiameter}mm`);
     }
 
     let currentY = workAreaMaxY + 20; // Start above the geometry or work area

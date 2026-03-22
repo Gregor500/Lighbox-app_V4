@@ -1,4 +1,4 @@
-import { Border, Element, Document, Diagnostic, Tolerances, DEFAULT_TOLERANCES, CornerTrace, Point2 } from './types';
+import { Border, Element, Document, Diagnostic, Tolerances, DEFAULT_TOLERANCES, CornerTrace } from './types';
 import { buildEnclosureTree, buildElementOwnershipModel } from './classification';
 import { buildGlass } from './builders/glass';
 import { buildBacking } from './builders/backing';
@@ -12,10 +12,6 @@ export interface PipelineConfig {
   chamferLength: number;
   filletRadius: number;
   tolerances: Tolerances;
-  frameLines?: { start: Point2, end: Point2 }[];
-  frameMaterialThickness?: number;
-  frameHoleSpacing?: number;
-  frameHoleDiameter?: number;
 }
 
 export interface PipelineResult {
@@ -50,7 +46,7 @@ export function runPipeline(borders: Border[], config: PipelineConfig): Pipeline
   });
   
   const backingElements = elements.map(el => {
-    const res = buildBacking(el, config, diagnostics);
+    const res = buildBacking(el, config.backingOffset, config.chamferLength, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
     return res.element;
   });
