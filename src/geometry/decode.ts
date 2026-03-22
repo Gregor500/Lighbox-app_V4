@@ -55,6 +55,43 @@ export function decodeSVGPath(d: string, id: string, tol: Tolerances, diagnostic
   };
 }
 
+function getBulgeArcPoints(p1: Point2, p2: Point2, bulge: number): Point2[] {
+  if (!bulge || bulge === 0) return [p1];
+  
+  const theta = 4 * Math.atan(bulge);
+  const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  if (dist === 0) return [p1];
+  
+  const radius = Math.abs(dist / (2 * Math.sin(theta / 2)));
+  const steps = Math.min(1024, Math.max(16, Math.ceil(radius * Math.abs(theta))));
+  
+  const chordMid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+  const chordDir = { x: (p2.x - p1.x) / dist, y: (p2.y - p1.y) / dist };
+  const chordNorm = { x: -chordDir.y, y: chordDir.x }; // CCW normal
+  
+  const centerDist = dist / (2 * Math.tan(theta / 2));
+  const center = {
+    x: chordMid.x + chordNorm.x * centerDist,
+    y: chordMid.y + chordNorm.y * centerDist
+  };
+  
+  let startAngle = Math.atan2(p1.y - center.y, p1.x - center.x);
+  let endAngle = Math.atan2(p2.y - center.y, p2.x - center.x);
+  
+  if (bulge > 0 && endAngle < startAngle) endAngle += 2 * Math.PI;
+  if (bulge < 0 && endAngle > startAngle) endAngle -= 2 * Math.PI;
+  
+  const points: Point2[] = [];
+  for (let i = 0; i < steps; i++) {
+    const angle = startAngle + (endAngle - startAngle) * (i / steps);
+    points.push({
+      x: center.x + radius * Math.cos(angle),
+      y: center.y + radius * Math.sin(angle)
+    });
+  }
+  return points;
+}
+
 export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagnostic[]): Border[] {
   const parser = new DxfParser();
   let parsed;
@@ -82,20 +119,49 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
 
   for (const entity of parsed.entities) {
     if (entity.type === 'LWPOLYLINE' || entity.type === 'POLYLINE') {
-      const points: Point2[] = entity.vertices.map((v: any) => ({ x: v.x, y: v.y }));
-      if (points.length > 2) {
-        borders.push({
-          id: `dxf_${prefix}_${idCounter++}`,
-          loop: { segments: [{ type: 'line', points: [...points] }] },
-          polygon: { points },
-          role: 'unknown',
-          depth: -1,
-          parentId: null
-        });
+      const vertices = entity.vertices;
+      const polyPoints: Point2[] = [];
+      
+      for (let i = 0; i < vertices.length; i++) {
+        const v1 = vertices[i];
+        const p1 = { x: v1.x, y: v1.y };
+        
+        if (v1.bulge && v1.bulge !== 0) {
+          // If it's the last vertex and not closed, don't connect to first
+          if (i === vertices.length - 1 && !entity.shape) {
+            polyPoints.push(p1);
+            continue;
+          }
+          
+          const v2 = vertices[(i + 1) % vertices.length];
+          const p2 = { x: v2.x, y: v2.y };
+          
+          const arcPoints = getBulgeArcPoints(p1, p2, v1.bulge);
+          polyPoints.push(...arcPoints.slice(0, -1));
+        } else {
+          polyPoints.push(p1);
+        }
+      }
+      
+      if (entity.shape) {
+        if (polyPoints.length > 2) {
+          borders.push({
+            id: `dxf_${prefix}_${idCounter++}`,
+            loop: { segments: [{ type: 'line', points: [...polyPoints] }] },
+            polygon: { points: polyPoints },
+            role: 'unknown',
+            depth: -1,
+            parentId: null
+          });
+        }
+      } else {
+        if (polyPoints.length > 1) {
+          segments.push(polyPoints);
+        }
       }
     } else if (entity.type === 'CIRCLE') {
       const points: Point2[] = [];
-      const steps = 32;
+      const steps = Math.min(1024, Math.max(32, Math.ceil(entity.radius * 2 * Math.PI)));
       for (let i = 0; i < steps; i++) {
         const angle = (i * 2 * Math.PI) / steps;
         points.push({
@@ -118,10 +184,10 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
       ]);
     } else if (entity.type === 'ARC') {
       const points: Point2[] = [];
-      const steps = 16;
       let start = entity.startAngle;
       let end = entity.endAngle;
       if (end < start) end += 2 * Math.PI;
+      const steps = Math.min(1024, Math.max(16, Math.ceil(entity.radius * Math.abs(end - start))));
       for (let i = 0; i <= steps; i++) {
         const angle = start + (end - start) * (i / steps);
         points.push({
@@ -132,12 +198,39 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
       segments.push(points);
     } else if (entity.type === 'SPLINE') {
       if (entity.controlPoints && entity.controlPoints.length > 1) {
-        const points: Point2[] = entity.controlPoints.map((p: any) => ({ x: p.x, y: p.y }));
+        const degree = entity.degreeOfSplineCurve !== undefined ? entity.degreeOfSplineCurve : (entity.degree !== undefined ? entity.degree : 3);
+        const knots = entity.knotValues || entity.knots;
+        const weights = entity.weights;
+        const controlPoints = entity.controlPoints;
+
+        if (knots && knots.length > 0) {
+          const steps = Math.max(64, controlPoints.length * 10);
+          const points = evaluateNURBS(degree, controlPoints, knots, weights, steps);
+          if (points) {
+            segments.push(points);
+          } else if (entity.fitPoints && entity.fitPoints.length > 1) {
+            const points: Point2[] = entity.fitPoints.map((p: any) => ({ x: p.x, y: p.y }));
+            segments.push(points);
+          } else {
+            const points: Point2[] = controlPoints.map((p: any) => ({ x: p.x, y: p.y }));
+            segments.push(points);
+          }
+        } else if (entity.fitPoints && entity.fitPoints.length > 1) {
+          // Fallback to fit points if no control points
+          const points: Point2[] = entity.fitPoints.map((p: any) => ({ x: p.x, y: p.y }));
+          segments.push(points);
+        } else {
+          // Fallback to control points if no fit points
+          const points: Point2[] = controlPoints.map((p: any) => ({ x: p.x, y: p.y }));
+          segments.push(points);
+        }
+      } else if (entity.fitPoints && entity.fitPoints.length > 1) {
+        // Fallback to fit points if no control points
+        const points: Point2[] = entity.fitPoints.map((p: any) => ({ x: p.x, y: p.y }));
         segments.push(points);
       }
     } else if (entity.type === 'ELLIPSE') {
       const points: Point2[] = [];
-      const steps = 32;
       const cx = entity.center.x;
       const cy = entity.center.y;
       const mx = entity.majorAxisEndPoint.x;
@@ -153,6 +246,8 @@ export function decodeDXF(dxfString: string, tol: Tolerances, diagnostics: Diagn
       let start = entity.startAngle || 0;
       let end = entity.endAngle || (2 * Math.PI);
       if (end < start) end += 2 * Math.PI;
+      
+      const steps = Math.min(1024, Math.max(32, Math.ceil(majorLen * Math.abs(end - start))));
       
       for (let i = 0; i <= steps; i++) {
         const angle = start + (end - start) * (i / steps);
@@ -266,4 +361,89 @@ function connectSegments(segments: Point2[][], eps: number): Point2[][] {
   }
   
   return loops;
+}
+
+function evaluateNURBS(
+  degree: number,
+  controlPoints: any[],
+  knots: number[],
+  weights: number[] | undefined,
+  steps: number = 64
+): Point2[] | null {
+  const points: Point2[] = [];
+  const p = degree;
+  const n = controlPoints.length - 1;
+  const m = knots.length - 1;
+
+  // If knot vector is invalid length or degree is too high, return null to trigger fallback
+  if (m < n + p || n < p) {
+    return null;
+  }
+
+  const minU = knots[p];
+  const maxU = knots[Math.min(n + 1, knots.length - 1)];
+
+  if (maxU <= minU) {
+    return null;
+  }
+
+  for (let i = 0; i <= steps; i++) {
+    const u = minU + (maxU - minU) * (i / steps);
+    points.push(evaluateNURBSPoint(p, controlPoints, knots, weights, u, maxU));
+  }
+
+  return points;
+}
+
+function evaluateNURBSPoint(
+  p: number,
+  controlPoints: any[],
+  knots: number[],
+  weights: number[] | undefined,
+  u: number,
+  maxU: number
+): Point2 {
+  const n = controlPoints.length - 1;
+  
+  // Find knot span
+  let k = p;
+  const maxK = Math.min(n, knots.length - 2);
+  
+  if (u >= maxU) {
+    k = maxK;
+    u = maxU;
+  } else if (u <= knots[p]) {
+    k = p;
+    u = knots[p];
+  } else {
+    for (let i = p; i <= maxK; i++) {
+      if (u >= knots[i] && u < knots[i + 1]) {
+        k = i;
+        break;
+      }
+    }
+  }
+
+  // De Boor's algorithm
+  const d: { x: number; y: number; w: number }[] = [];
+  for (let j = 0; j <= p; j++) {
+    const cp = controlPoints[k - p + j];
+    const w = weights && weights.length > k - p + j ? weights[k - p + j] : 1.0;
+    d[j] = { x: cp.x * w, y: cp.y * w, w: w };
+  }
+
+  for (let r = 1; r <= p; r++) {
+    for (let j = p; j >= r; j--) {
+      const i = k - p + j;
+      const denom = knots[i + p - r + 1] - knots[i];
+      const alpha = denom === 0 ? 0 : (u - knots[i]) / denom;
+      
+      d[j].x = (1 - alpha) * d[j - 1].x + alpha * d[j].x;
+      d[j].y = (1 - alpha) * d[j - 1].y + alpha * d[j].y;
+      d[j].w = (1 - alpha) * d[j - 1].w + alpha * d[j].w;
+    }
+  }
+
+  if (d[p].w === 0) return { x: d[p].x, y: d[p].y };
+  return { x: d[p].x / d[p].w, y: d[p].y / d[p].w };
 }

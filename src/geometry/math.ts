@@ -11,15 +11,37 @@ export function getSignedArea(pts: Point2[]): number {
 }
 
 export function getInteriorAngle(pPrev: Point2, pCurr: Point2, pNext: Point2, isCCW: boolean): number {
-  const v1 = { x: pPrev.x - pCurr.x, y: pPrev.y - pCurr.y };
-  const v2 = { x: pNext.x - pCurr.x, y: pNext.y - pCurr.y };
+  const vIn = { x: pCurr.x - pPrev.x, y: pCurr.y - pPrev.y };
+  const vOut = { x: pNext.x - pCurr.x, y: pNext.y - pCurr.y };
   
-  let angle = Math.atan2(v2.y, v2.x) - Math.atan2(v1.y, v1.x);
-  if (angle < 0) angle += 2 * Math.PI;
+  let turnAngle = Math.atan2(vOut.y, vOut.x) - Math.atan2(vIn.y, vIn.x);
   
-  let interiorPolyAngle = isCCW ? (2 * Math.PI - angle) : angle;
+  // Normalize turnAngle to [-PI, PI]
+  while (turnAngle < -Math.PI) turnAngle += 2 * Math.PI;
+  while (turnAngle > Math.PI) turnAngle -= 2 * Math.PI;
   
-  return interiorPolyAngle;
+  // isCCW in our Y-down system means area > 0 is visually CW.
+  // Wait, let's just use the standard definition:
+  // If area > 0 (visually CW), interior is on the RIGHT.
+  // If area < 0 (visually CCW), interior is on the LEFT.
+  // We pass `isCCW = area > 0` from analyzeCorners. So `isCCW` actually means visually CW.
+  // Let's rename the logic internally to be clear.
+  const isVisuallyCW = isCCW; 
+  
+  let interiorPolyAngleRad;
+  if (isVisuallyCW) {
+    // Interior is on the RIGHT.
+    // turnAngle > 0 (visually RIGHT turn) -> interior < 180
+    // turnAngle < 0 (visually LEFT turn) -> interior > 180
+    interiorPolyAngleRad = Math.PI - turnAngle;
+  } else {
+    // Interior is on the LEFT.
+    // turnAngle > 0 (visually RIGHT turn) -> interior > 180
+    // turnAngle < 0 (visually LEFT turn) -> interior < 180
+    interiorPolyAngleRad = Math.PI + turnAngle;
+  }
+  
+  return interiorPolyAngleRad;
 }
 
 export function polygonArea(poly: PolygonApprox): number {

@@ -18,9 +18,14 @@ export function runValidationSuite(): FullReport {
   const borders = getSampleBorders();
   const config = {
     glassOffset: 2,
+    backingOffset: 2,
     chamferLength: 4,
     filletRadius: 4,
-    tolerances: DEFAULT_TOLERANCES
+    tolerances: DEFAULT_TOLERANCES,
+    frameLines: [],
+    frameMaterialThickness: 20,
+    frameHoleSpacing: 100,
+    frameHoleDiameter: 5
   };
 
   const pipelineResult = runPipeline(borders, config);

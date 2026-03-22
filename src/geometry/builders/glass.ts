@@ -75,11 +75,15 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
     id: `${element.perimeter.id}_orig`,
     polygon: { points: element.perimeter.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
   };
-  const mirroredOriginalHoles = element.holes.map((hole, i) => ({
-    ...hole,
-    id: `${hole.id}_orig`,
-    polygon: { points: hole.polygon.points.map(pt => ({ x: -pt.x, y: pt.y })) }
-  }));
+  const mirroredOriginalHoles = element.holes.map((hole, i) => {
+    // Apply chamfers to the original hole so the "cut" line also shows them
+    const chamferedHolePoly = applyChamfers(hole.polygon, 'hole', chamferLength, tol);
+    return {
+      ...hole,
+      id: `${hole.id}_orig`,
+      polygon: { points: chamferedHolePoly.points.map(pt => ({ x: -pt.x, y: pt.y })) }
+    };
+  });
   const mirroredOriginalElement: Element = {
     ...element,
     id: `${element.id}_orig`,
