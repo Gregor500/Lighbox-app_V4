@@ -10,14 +10,22 @@ The chamfering logic is applied to sharp corners that cut into the usable materi
 
 Corners are analyzed in `src/geometry/corners.ts` (`analyzeCorners` function):
 
-1.  **Angle Calculation**: For each vertex, the interior angle is calculated.
-2.  **Cut Angle**: The angle of the "empty space" is determined:
-    *   For perimeters (counter-clockwise), the empty space is on the outside: `360 - interiorAngle`.
-    *   For holes (clockwise), the empty space is on the inside: `interiorAngle`.
+1.  **Angle Calculation**: For each vertex, the interior angle is calculated using `getInteriorAngle`. In our Y-down coordinate system:
+    *   For a CCW polygon (perimeter), a left turn means the interior angle is < 180°, and a right turn means > 180°.
+    *   For a CW polygon (hole), a left turn means the interior angle is > 180°, and a right turn means < 180°.
+2.  **Material Angle**: The angle of the material itself is determined:
+    *   For perimeters (CCW), the material is on the inside: `interiorAngle`.
+    *   For holes (CW), the material is on the outside: `360 - interiorAngle`.
 3.  **Conditions for Chamfering**: A corner is flagged for chamfering if:
-    *   It cuts into the material (`cutAngle < 179.99°`).
-    *   The cut is acute (`cutAngle < tol.acute_threshold_deg`).
+    *   It is an external corner (`materialAngle < 179.99°`).
+    *   The corner is strictly acute (`materialAngle < tol.acute_threshold_deg`, which is set to `90°`).
     *   The target material is `glass` or `backing`. (For `vinyl`, a fillet is used instead).
+
+### Holes vs. Perimeters (Visual Behavior)
+
+Because of how material angles are calculated:
+*   **On a Perimeter (e.g., a star-shaped outer cut):** The outer points jut out into empty space, making them *external* corners to the material. If they are < 90°, they get chamfered. The inner "armpits" cut into the material, making them *internal* corners, so they do NOT get chamfered.
+*   **On a Hole (e.g., a star-shaped cutout):** The material is on the *outside* of the line. The inner "armpits" of the star jut out into the solid glass/backing, making them *external* corners to the material. If they are < 90°, they get chamfered. The outer points of the star cut into the empty hole, making them *internal* corners to the material, so they do NOT get chamfered.
 
 ## Chamfer Application
 
@@ -38,4 +46,4 @@ The chamfer is applied in `src/geometry/builders/glass.ts` and `src/geometry/bui
 ## Configuration
 
 *   The `chamferLength` is configurable per profile in the application state (e.g., `P6`, `P8`).
-*   The `acute_threshold_deg` is defined in the tolerances configuration.
+*   The `acute_threshold_deg` is defined in the tolerances configuration (`DEFAULT_TOLERANCES` in `src/geometry/types.ts`) and is strictly set to `90` to only target true acute angles.

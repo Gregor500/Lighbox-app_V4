@@ -18,29 +18,30 @@ export function analyzeCorners(border: Border, tol: Tolerances, target: 'glass' 
     const angleRad = getInteriorAngle(pPrev, pCurr, pNext, isCCW);
     let angleDeg = angleRad * (180 / Math.PI);
 
-    // A corner makes a "cut into the usable area" if the empty space forms an acute angle.
-    // For a perimeter (CCW), the empty space is on the outside. Its angle is 360 - angleDeg.
-    // For a hole (CW), the empty space is on the inside. Its angle is angleDeg.
-    let cutAngleDeg = isCCW ? 360 - angleDeg : angleDeg;
+    // For a perimeter (CCW), the material is on the inside. Its angle is angleDeg.
+    // For a hole (CW), the material is on the outside. Its angle is 360 - angleDeg.
+    let materialAngleDeg = isCCW ? angleDeg : 360 - angleDeg;
 
-    // To handle floating point inaccuracies
-    const isCutIntoMaterial = cutAngleDeg < 179.99;
-    const isAcuteCut = cutAngleDeg < tol.acute_threshold_deg;
+    // A corner is an external sharp corner if the material angle is less than 180 degrees.
+    const isExternalCorner = materialAngleDeg < 179.99;
+    
+    // We apply chamfer/fillet if the external corner is sharp enough.
+    const isAcute = materialAngleDeg < tol.acute_threshold_deg;
 
     let action: 'none' | 'chamfer' | 'fillet' = 'none';
 
     if (target === 'glass' || target === 'backing') {
-      if (isCutIntoMaterial && isAcuteCut) action = 'chamfer';
+      if (isExternalCorner && isAcute) action = 'chamfer';
     } else if (target === 'vinyl') {
-      if (isCutIntoMaterial && isAcuteCut) action = 'fillet';
+      if (isExternalCorner && isAcute) action = 'fillet';
     }
 
     traces.push({
       sourceBorderId: border.id,
       cornerIndex: i,
       interiorAngleDeg: angleDeg,
-      isInteriorUsable: isCutIntoMaterial, // Repurposing this field for the trace
-      isAcute: isAcuteCut,
+      isInteriorUsable: isExternalCorner, // Repurposing this field to mean isExternalCorner
+      isAcute: isAcute,
       actionChosen: action
     });
   }

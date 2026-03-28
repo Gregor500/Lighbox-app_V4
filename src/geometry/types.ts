@@ -35,10 +35,34 @@ export interface Border {
   parentId: string | null;
 }
 
+export interface LineSegment {
+  p1: Point2;
+  p2: Point2;
+}
+
+export interface FrameComponent {
+  id: string;
+  stripOutline: PolygonApprox;
+  bendMarks: LineSegment[];
+  holes: Point2[];
+  totalLength: number;
+}
+
+export interface RearFrameComponent {
+  id: string;
+  outerOutline: PolygonApprox[];
+  innerOutline: PolygonApprox[];
+  centerline: PolygonApprox[];
+  holes: Point2[];
+}
+
 export interface Element {
   id: string;
   perimeter: Border;
   holes: Border[];
+  mountingHoles?: Point2[];
+  frame?: FrameComponent[];
+  rearFrame?: RearFrameComponent;
 }
 
 export interface Document {
@@ -84,5 +108,5 @@ export const DEFAULT_TOLERANCES: Tolerances = {
   eps_collinear: 1e-4,
   eps_area_min: 1e-2,
   eps_self_intersection: 1e-4,
-  acute_threshold_deg: 135,
+  acute_threshold_deg: 90,
 };

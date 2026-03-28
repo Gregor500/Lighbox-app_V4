@@ -1,7 +1,8 @@
-import { Border, Element, Document, Diagnostic, Tolerances } from './types';
+import { Border, Element, Document, Diagnostic, Tolerances, DEFAULT_TOLERANCES } from './types';
 import { polygonArea, polygonContainsPolygon } from './math';
 
 export function buildEnclosureTree(borders: Border[], tol: Tolerances, diagnostics: Diagnostic[]): Border[] {
+  tol = tol || DEFAULT_TOLERANCES;
   // 1. Calculate depth for each border
   for (let i = 0; i < borders.length; i++) {
     let depth = 0;

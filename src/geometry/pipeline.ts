@@ -50,7 +50,7 @@ export function runPipeline(borders: Border[], config: PipelineConfig): Pipeline
   });
   
   const backingElements = elements.map(el => {
-    const res = buildBacking(el, config, diagnostics);
+    const res = buildBacking(el, config.backingOffset, config.chamferLength, config.tolerances, diagnostics);
     cornerTraces.push(...res.traces);
     return res.element;
   });

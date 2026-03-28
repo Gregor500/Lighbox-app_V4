@@ -1,4 +1,4 @@
-import { Point2, PolygonApprox, Tolerances } from './types';
+import { Point2, PolygonApprox, Tolerances, DEFAULT_TOLERANCES } from './types';
 
 export function getSignedArea(pts: Point2[]): number {
   let area = 0;
@@ -20,25 +20,21 @@ export function getInteriorAngle(pPrev: Point2, pCurr: Point2, pNext: Point2, is
   while (turnAngle < -Math.PI) turnAngle += 2 * Math.PI;
   while (turnAngle > Math.PI) turnAngle -= 2 * Math.PI;
   
-  // isCCW in our Y-down system means area > 0 is visually CW.
-  // Wait, let's just use the standard definition:
-  // If area > 0 (visually CW), interior is on the RIGHT.
-  // If area < 0 (visually CCW), interior is on the LEFT.
-  // We pass `isCCW = area > 0` from analyzeCorners. So `isCCW` actually means visually CW.
-  // Let's rename the logic internally to be clear.
-  const isVisuallyCW = isCCW; 
+  // isCCW in our Y-down system means area > 0 is visually CCW.
+  // turnAngle > 0 means a right turn.
+  // turnAngle < 0 means a left turn.
   
   let interiorPolyAngleRad;
-  if (isVisuallyCW) {
-    // Interior is on the RIGHT.
-    // turnAngle > 0 (visually RIGHT turn) -> interior < 180
-    // turnAngle < 0 (visually LEFT turn) -> interior > 180
-    interiorPolyAngleRad = Math.PI - turnAngle;
-  } else {
-    // Interior is on the LEFT.
-    // turnAngle > 0 (visually RIGHT turn) -> interior > 180
-    // turnAngle < 0 (visually LEFT turn) -> interior < 180
+  if (isCCW) {
+    // For a CCW polygon, the interior is to the left of the path.
+    // A left turn (turnAngle < 0) means the interior angle is < 180.
+    // A right turn (turnAngle > 0) means the interior angle is > 180.
     interiorPolyAngleRad = Math.PI + turnAngle;
+  } else {
+    // For a CW polygon, the interior is to the right of the path.
+    // A left turn (turnAngle < 0) means the interior angle is > 180.
+    // A right turn (turnAngle > 0) means the interior angle is < 180.
+    interiorPolyAngleRad = Math.PI - turnAngle;
   }
   
   return interiorPolyAngleRad;
@@ -56,6 +52,7 @@ export function polygonArea(poly: PolygonApprox): number {
 }
 
 export function isPointInPolygon(pt: Point2, poly: PolygonApprox, tol: Tolerances): boolean {
+  tol = tol || DEFAULT_TOLERANCES;
   const pts = poly.points;
   let inside = false;
   const n = pts.length;
@@ -95,6 +92,7 @@ export function polygonsIntersect(poly1: PolygonApprox, poly2: PolygonApprox): b
 }
 
 export function polygonContainsPolygon(outer: PolygonApprox, inner: PolygonApprox, tol: Tolerances): boolean {
+  tol = tol || DEFAULT_TOLERANCES;
   // A simple check: if all points of inner are inside outer, it's contained.
   // In a robust engine, we'd also check edge intersections.
   for (const pt of inner.points) {
@@ -110,6 +108,7 @@ export function distance(p1: Point2, p2: Point2): number {
 }
 
 export function isClosed(poly: PolygonApprox, tol: Tolerances): boolean {
+  tol = tol || DEFAULT_TOLERANCES;
   if (poly.points.length < 3) return false;
   const first = poly.points[0];
   const last = poly.points[poly.points.length - 1];
@@ -117,6 +116,7 @@ export function isClosed(poly: PolygonApprox, tol: Tolerances): boolean {
 }
 
 export function simplifyPolygon(poly: PolygonApprox, tol: Tolerances): PolygonApprox {
+  tol = tol || DEFAULT_TOLERANCES;
   const pts = poly.points;
   if (pts.length < 3) return poly;
 

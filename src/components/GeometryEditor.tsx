@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Border, Point2, DEFAULT_TOLERANCES } from '../geometry/types';
+import { Border, Point2, LineSegment, DEFAULT_TOLERANCES } from '../geometry/types';
 import { polygonsIntersect, polygonContainsPolygon } from '../geometry/math';
 
 interface GeometryEditorProps {
@@ -8,9 +8,11 @@ interface GeometryEditorProps {
   readonly?: boolean;
   title?: string;
   workArea?: { width: number; height: number } | null;
+  extraPoints?: Point2[];
+  extraLines?: LineSegment[];
 }
 
-export function GeometryEditor({ borders, onChange, readonly, title, workArea }: GeometryEditorProps) {
+export function GeometryEditor({ borders, onChange, readonly, title, workArea, extraPoints, extraLines }: GeometryEditorProps) {
   const [dragging, setDragging] = useState<{ borderId: string; pointIndex: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -24,6 +26,24 @@ export function GeometryEditor({ borders, onChange, readonly, title, workArea }:
       maxY = Math.max(maxY, p.y);
     });
   });
+
+  if (extraPoints) {
+    extraPoints.forEach(p => {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    });
+  }
+
+  if (extraLines) {
+    extraLines.forEach(l => {
+      minX = Math.min(minX, l.p1.x, l.p2.x);
+      minY = Math.min(minY, l.p1.y, l.p2.y);
+      maxX = Math.max(maxX, l.p1.x, l.p2.x);
+      maxY = Math.max(maxY, l.p1.y, l.p2.y);
+    });
+  }
 
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
@@ -222,6 +242,35 @@ export function GeometryEditor({ borders, onChange, readonly, title, workArea }:
             </g>
           );
         })}
+
+        {/* Extra Lines (e.g., bend marks) */}
+        {extraLines && extraLines.map((line, i) => (
+          <line
+            key={`line-${i}`}
+            x1={line.p1.x}
+            y1={line.p1.y}
+            x2={line.p2.x}
+            y2={line.p2.y}
+            stroke="#F50057"
+            strokeWidth="2"
+            strokeDasharray="4,4"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+
+        {/* Extra Points (e.g., holes) */}
+        {extraPoints && extraPoints.map((p, i) => (
+          <circle
+            key={`pt-${i}`}
+            cx={p.x}
+            cy={p.y}
+            r="3"
+            fill="#FF9100"
+            stroke="#E65100"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
       </svg>
       <div className="absolute top-2 left-2 bg-white/80 px-2 py-1 rounded text-xs font-mono shadow">
         {title || (readonly ? 'Geometry Preview' : 'Interactive Geometry Editor')}

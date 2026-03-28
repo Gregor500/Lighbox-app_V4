@@ -21,11 +21,13 @@ export function runValidationSuite(): FullReport {
     backingOffset: 2,
     chamferLength: 4,
     filletRadius: 4,
-    tolerances: DEFAULT_TOLERANCES,
-    frameLines: [],
-    frameMaterialThickness: 20,
+    frameDepth: 50,
+    frameFlange: 15,
     frameHoleSpacing: 100,
-    frameHoleDiameter: 5
+    rearFrameInset: 10,
+    rearFrameProfileWidth: 20,
+    rearFrameHoleSpacing: 200,
+    tolerances: DEFAULT_TOLERANCES
   };
 
   const pipelineResult = runPipeline(borders, config);

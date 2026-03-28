@@ -48,24 +48,24 @@ function applyChamfers(poly: PolygonApprox, traces: CornerTrace[], borderId: str
   return { points: newPts };
 }
 
-export function buildBacking(element: Element, glassOffset: number, chamferLength: number, tol: Tolerances, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
+export function buildBacking(element: Element, backingOffset: number, chamferLength: number, tol: Tolerances, diagnostics: Diagnostic[]): { element: Element, traces: CornerTrace[] } {
   const traces: CornerTrace[] = [];
   
-  // Analyze corners
-  traces.push(...analyzeCorners(element.perimeter, tol, 'backing'));
-  element.holes.forEach(hole => {
-    traces.push(...analyzeCorners(hole, tol, 'backing'));
-  });
+  // Analyze corners of original element
+  const origPerimeterTraces = analyzeCorners(element.perimeter, tol, 'backing');
+  traces.push(...origPerimeterTraces);
+  const origHolesTraces = element.holes.map(hole => analyzeCorners(hole, tol, 'backing'));
+  origHolesTraces.forEach(t => traces.push(...t));
   
   // 1. Apply chamfers to original polygons
-  const chamferedPerimeterPoly = applyChamfers(element.perimeter.polygon, traces, element.perimeter.id, chamferLength);
-  const chamferedHolesPoly = element.holes.map(hole => applyChamfers(hole.polygon, traces, hole.id, chamferLength));
+  const chamferedPerimeterPoly = applyChamfers(element.perimeter.polygon, origPerimeterTraces, element.perimeter.id, chamferLength);
+  const chamferedHolesPoly = element.holes.map((hole, i) => applyChamfers(hole.polygon, origHolesTraces[i], hole.id, chamferLength));
 
-  // 2. Perimeter offset inward by glass_offset
-  const perimeterOffset = offsetPolygon(chamferedPerimeterPoly, -glassOffset);
+  // 2. Perimeter offset inward by backingOffset
+  const perimeterOffset = offsetPolygon(chamferedPerimeterPoly, -backingOffset);
   
-  // 3. Hole offset outward by glass_offset (positive value expands the hole into the usable shape)
-  const holesOffset = chamferedHolesPoly.map(holePoly => offsetPolygon(holePoly, glassOffset));
+  // 3. Hole offset outward by backingOffset (negative delta expands CW polygons)
+  const holesOffset = element.holes.map((hole, i) => offsetPolygon(chamferedHolesPoly[i], -backingOffset));
 
   if (perimeterOffset.length === 0) {
     diagnostics.push({
@@ -80,9 +80,9 @@ export function buildBacking(element: Element, glassOffset: number, chamferLengt
   }
 
   // Clip holes against perimeter to prevent overlap
-  const usableMaterials = getUsableMaterial(
-    perimeterOffset[0], 
-    holesOffset.map(ho => ho[0]).filter(Boolean)
+  const allHolesOffsetPolys = holesOffset.flatMap(ho => ho);
+  const usableMaterials = perimeterOffset.flatMap(perim => 
+    getUsableMaterial(perim, allHolesOffsetPolys)
   );
 
   if (usableMaterials.length === 0) {

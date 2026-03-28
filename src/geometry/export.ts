@@ -20,9 +20,6 @@ export interface ExportParams {
   attachmentTrimRouterBitDiameter?: number;
   sideDepth?: number;
   sideThickness?: number;
-  frameMaterialThickness?: number;
-  frameHoleSpacing?: number;
-  frameHoleDiameter?: number;
 }
 
 export function exportToDXF(elements: Element[], params?: ExportParams): string {
@@ -87,15 +84,6 @@ export function exportToDXF(elements: Element[], params?: ExportParams): string 
     if (params.sideThickness !== undefined) {
       textLines.push(`Side Thickness: ${params.sideThickness}mm`);
     }
-    if (params.frameMaterialThickness !== undefined) {
-      textLines.push(`Frame Material Thickness: ${params.frameMaterialThickness}mm`);
-    }
-    if (params.frameHoleSpacing !== undefined) {
-      textLines.push(`Frame Hole Spacing: ${params.frameHoleSpacing}mm`);
-    }
-    if (params.frameHoleDiameter !== undefined) {
-      textLines.push(`Frame Hole Diameter: ${params.frameHoleDiameter}mm`);
-    }
 
     let currentY = workAreaMaxY + 20; // Start above the geometry or work area
     const textHeight = 5;
@@ -108,9 +96,44 @@ export function exportToDXF(elements: Element[], params?: ExportParams): string 
   }
 
   for (const el of elements) {
-    str += polylineToDxf(el.perimeter.polygon, 'Perimeter');
-    for (const hole of el.holes) {
-      str += polylineToDxf(hole.polygon, 'Hole');
+    if (params?.type !== 'frame' && params?.type !== 'rearFrame') {
+      str += polylineToDxf(el.perimeter.polygon, 'Perimeter');
+      for (const hole of el.holes) {
+        str += polylineToDxf(hole.polygon, 'Hole');
+      }
+    }
+
+    if (params?.type === 'backing' && el.mountingHoles) {
+      for (const pt of el.mountingHoles) {
+        str += `  0\nCIRCLE\n  8\nMounting_Holes\n 10\n${pt.x.toFixed(4)}\n 20\n${pt.y.toFixed(4)}\n 40\n1.5\n`;
+      }
+    }
+
+    if (params?.type === 'frame' && el.frame) {
+      for (const f of el.frame) {
+        str += polylineToDxf(f.stripOutline, 'Frame_Outline');
+        for (const line of f.bendMarks) {
+          str += `  0\nLINE\n  8\nFrame_Bend_Marks\n 10\n${line.p1.x.toFixed(4)}\n 20\n${line.p1.y.toFixed(4)}\n 11\n${line.p2.x.toFixed(4)}\n 21\n${line.p2.y.toFixed(4)}\n`;
+        }
+        for (const pt of f.holes) {
+          str += `  0\nCIRCLE\n  8\nFrame_Holes\n 10\n${pt.x.toFixed(4)}\n 20\n${pt.y.toFixed(4)}\n 40\n1.5\n`;
+        }
+      }
+    }
+
+    if (params?.type === 'rearFrame' && el.rearFrame) {
+      for (const poly of el.rearFrame.outerOutline) {
+        str += polylineToDxf(poly, 'RearFrame_Outer');
+      }
+      for (const poly of el.rearFrame.innerOutline) {
+        str += polylineToDxf(poly, 'RearFrame_Inner');
+      }
+      for (const poly of el.rearFrame.centerline) {
+        str += polylineToDxf(poly, 'RearFrame_Centerline');
+      }
+      for (const pt of el.rearFrame.holes) {
+        str += `  0\nCIRCLE\n  8\nRearFrame_Holes\n 10\n${pt.x.toFixed(4)}\n 20\n${pt.y.toFixed(4)}\n 40\n1.5\n`;
+      }
     }
   }
   str += `  0\nENDSEC\n  0\nEOF\n`;

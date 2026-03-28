@@ -387,8 +387,35 @@ function evaluateNURBS(
     return null;
   }
 
+  // Collect u values to sample
+  const uValues: number[] = [];
+  
+  // 1. Add uniform steps
   for (let i = 0; i <= steps; i++) {
-    const u = minU + (maxU - minU) * (i / steps);
+    uValues.push(minU + (maxU - minU) * (i / steps));
+  }
+  
+  // 2. Add all knot values in the valid range.
+  // This is CRITICAL for preserving sharp corners in splines, 
+  // as sharp corners occur exactly at the knots (with high multiplicity).
+  for (let i = p; i <= Math.min(n + 1, knots.length - 1); i++) {
+    if (knots[i] >= minU && knots[i] <= maxU) {
+      uValues.push(knots[i]);
+    }
+  }
+
+  // Sort the u values
+  uValues.sort((a, b) => a - b);
+
+  // Filter out duplicates to avoid redundant evaluations
+  const uniqueU: number[] = [];
+  for (let i = 0; i < uValues.length; i++) {
+    if (i === 0 || uValues[i] - uniqueU[uniqueU.length - 1] > 1e-7) {
+      uniqueU.push(uValues[i]);
+    }
+  }
+
+  for (const u of uniqueU) {
     points.push(evaluateNURBSPoint(p, controlPoints, knots, weights, u, maxU));
   }
 
