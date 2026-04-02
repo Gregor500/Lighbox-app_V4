@@ -94,17 +94,22 @@ export function buildGlass(element: Element, glassOffset: number, chamferLength:
   for (let i = 0; i < usableMaterials.length; i++) {
     const material = usableMaterials[i];
     
+    // Mirror across Y-axis (x = -x) and reverse to preserve winding order
+    const mirrorPoly = (poly: PolygonApprox): PolygonApprox => ({
+      points: poly.points.map(p => ({ x: -p.x, y: p.y })).reverse()
+    });
+
     const processedPerimeter = {
       ...element.perimeter,
       id: `${element.perimeter.id}_offset_${i}`,
-      polygon: material.perimeter
+      polygon: mirrorPoly(material.perimeter)
     };
 
     const processedHoles = material.holes.map((holePoly, j) => {
       return {
         ...element.holes[0], // Copy properties from first hole as fallback
         id: `${element.id}_hole_offset_${i}_${j}`,
-        polygon: holePoly
+        polygon: mirrorPoly(holePoly)
       };
     });
 

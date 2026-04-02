@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Border, Point2, Element, DEFAULT_TOLERANCES } from '../geometry/types';
 import { floodFillAndTrace } from '../geometry/flood-fill';
-import { polygonContainsPolygon } from '../geometry/math';
+import { polygonContainsPolygon, polygonArea } from '../geometry/math';
 
 interface VinylColorMappingProps {
   borders: Border[];
@@ -213,8 +213,22 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
             </g>
           ))}
 
-          {/* Draw borders */}
-          {[...borders].sort((a, b) => (a.role === 'perimeter' ? -1 : 1)).map(border => {
+          {/* Fill path for all borders using evenodd to show the actual shape without hiding lines */}
+          {mode === 'shape' && (
+            <path
+              d={borders.map(border => {
+                const pts = border.polygon.points;
+                if (pts.length < 3) return '';
+                return `M ${pts[0].x},${pts[0].y} ` + pts.slice(1).map(p => `L ${p.x},${p.y}`).join(' ') + ' Z';
+              }).join(' ')}
+              fill="rgba(0, 0, 255, 0.1)"
+              fillRule="evenodd"
+              className="pointer-events-none"
+            />
+          )}
+
+          {/* Draw borders for interaction */}
+          {[...borders].sort((a, b) => Math.abs(polygonArea(b.polygon)) - Math.abs(polygonArea(a.polygon))).map(border => {
             const pts = border.polygon.points;
             if (pts.length < 3) return null;
             const pointsStr = pts.map(p => `${p.x},${p.y}`).join(' ');
@@ -223,7 +237,7 @@ export function VinylColorMapping({ borders, onBordersChange, onVinylRegionsChan
               <polygon
                 key={border.id}
                 points={pointsStr}
-                fill={border.role === 'hole' ? '#FFFFFF' : (mode === 'shape' ? 'rgba(0, 0, 255, 0.1)' : 'none')}
+                fill="transparent"
                 stroke={border.role === 'hole' ? '#22c55e' : '#3b82f6'}
                 strokeWidth={mode === 'shape' ? "2" : "1"}
                 vectorEffect="non-scaling-stroke"
